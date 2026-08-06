@@ -510,12 +510,26 @@ export default function UnifiedSearch({
     setFoodError(false);
     Promise.all(
       infoPlaces.map(async (place) => {
-        const query = `[out:json][timeout:15];nwr["amenity"~"^(restaurant|cafe|fast_food)$"](around:1200,${place.lat},${place.lon});out center 30;`;
-        const response = await fetch(
-          `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`,
-        );
-        if (!response.ok) throw new Error("restaurant search unavailable");
-        const data = await response.json();
+        const query = `[out:json][timeout:10];nwr["amenity"~"^(restaurant|cafe|fast_food)$"](around:1000,${place.lat},${place.lon});out center 24;`;
+        const endpoints = [
+          "https://overpass.kumi.systems/api/interpreter",
+          "https://overpass-api.de/api/interpreter",
+        ];
+        let data: any = null;
+        for (const endpoint of endpoints) {
+          try {
+            const response = await fetch(
+              `${endpoint}?data=${encodeURIComponent(query)}`,
+            );
+            if (response.ok) {
+              data = await response.json();
+              break;
+            }
+          } catch {
+            /* try the next public mirror */
+          }
+        }
+        if (!data) return [place.id, [] as Restaurant[]] as const;
         const restaurants: Restaurant[] = data.elements
           .map((item: any) => {
             const lat = item.lat ?? item.center?.lat;
@@ -541,7 +555,13 @@ export default function UnifiedSearch({
       }),
     )
       .then((entries) => {
-        if (!cancelled) setFoodResults(Object.fromEntries(entries));
+        if (!cancelled) {
+          const next = Object.fromEntries(entries);
+          setFoodResults(next);
+          setFoodError(
+            entries.every(([, restaurants]) => restaurants.length === 0),
+          );
+        }
       })
       .catch(() => {
         if (!cancelled) {
