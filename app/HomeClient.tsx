@@ -62,6 +62,7 @@ export default function HomeClient() {
   const [userPosition, setUserPosition] = useState<{ lat: number; lon: number } | null>(null);
   const [locationMessage, setLocationMessage] = useState("Use your location to see estimated distance and walking time.");
   const [locationHelpOpen, setLocationHelpOpen] = useState(false);
+  const [locationPromptOpen, setLocationPromptOpen] = useState(true);
   const [searchedQuery, setSearchedQuery] = useState("");
   const place = useMemo(() => places.find((item) => item.id === selected) ?? places[0], [selected]);
 
@@ -86,7 +87,7 @@ export default function HomeClient() {
     if (!window.isSecureContext) { setLocationMessage("Location requires a secure HTTPS connection."); return; }
     setLocationMessage("Requesting your location… Choose Allow in the browser permission prompt.");
     navigator.geolocation.getCurrentPosition(
-      (position) => { setUserPosition({ lat: position.coords.latitude, lon: position.coords.longitude }); setLocationMessage("Location connected. Walking estimates use 5 minutes per kilometer."); },
+      (position) => { setUserPosition({ lat: position.coords.latitude, lon: position.coords.longitude }); setLocationMessage("Location connected. Walking estimates use 5 minutes per kilometer."); setLocationPromptOpen(false); },
       (error) => {
         if (error.code === error.PERMISSION_DENIED) setLocationMessage("Location is blocked. Use the lock icon in the browser address bar, allow Location for this site, then press this button again.");
         else if (error.code === error.TIMEOUT) setLocationMessage("Location request timed out. Check your network or GPS, then try again.");
@@ -98,6 +99,8 @@ export default function HomeClient() {
 
   return <main className="app-shell" lang={language}>
     <header className="app-topbar"><button className="brand-button" onClick={() => setScreen("home")} aria-label={ko ? "블루라인 부산 홈" : "BlueLine Busan home"}><b>B</b> BLUE LINE <i>BUSAN</i></button><div className="topbar-right"><span className="guide-label"><span className="online-dot" /> {ko ? "부산 해안 여행 가이드" : "SEARCH-LED COAST GUIDE"}</span><div className="global-language" role="group" aria-label={ko ? "언어 선택" : "Choose language"}><button className={ko ? "active" : ""} onClick={() => changeLanguage("ko")}>한국어</button><button className={!ko ? "active" : ""} onClick={() => changeLanguage("en")}>EN</button></div></div></header>
+
+    {locationPromptOpen && <div className="location-consent" role="dialog" aria-modal="true" aria-labelledby="location-consent-title"><div><span className="location-pin">●</span><div><small>BLUE LINE BUSAN</small><h2 id="location-consent-title">{ko ? "위치 권한을 허용해 주세요" : "Please allow location access"}</h2><p>{ko ? "현재 위치에서 관광지까지의 도로 경로와 거리를 계산하려면 위치 권한이 필요합니다. 위치는 서버에 저장되지 않습니다." : "Location access is needed to calculate road routes and distance from where you are. Your location is not stored on our server."}</p><div className="location-consent-actions"><button onClick={requestLocation}>{ko ? "위치 허용" : "Allow location"}</button><button className="secondary" onClick={() => setLocationPromptOpen(false)}>{ko ? "나중에" : "Not now"}</button></div><p className="location-consent-status" aria-live="polite">{locationMessage}</p></div></div></div>}
 
     {screen === "home" && <section className="home-screen">
       <div className="photo-panorama" aria-label="Busan coast panorama"><div className="photo-track"><div style={{ backgroundImage: "url('/busan-panorama-night.png')" }} /><div style={{ backgroundImage: "url('/busan-panorama-dusk.png')" }} /><div style={{ backgroundImage: "url('/busan-panorama-cliff.png')" }} /><div style={{ backgroundImage: "url('/busan-panorama-night.png')" }} /></div><div className="photo-overlay" /></div>
