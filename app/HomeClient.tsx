@@ -53,6 +53,7 @@ const attractions = [
 ];
 
 export default function HomeClient() {
+  const [language, setLanguage] = useState<"ko" | "en">("ko");
   const [screen, setScreen] = useState<Screen>("home");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<PlaceKey>("haeundae");
@@ -65,8 +66,10 @@ export default function HomeClient() {
   const place = useMemo(() => places.find((item) => item.id === selected) ?? places[0], [selected]);
 
   useEffect(() => {
-    try { setHistory(JSON.parse(localStorage.getItem("blueline-search-history") || "[]")); } catch { setHistory([]); }
+    try { setHistory(JSON.parse(localStorage.getItem("blueline-search-history") || "[]")); setLanguage(localStorage.getItem("blueline-language") === "en" ? "en" : "ko"); } catch { setHistory([]); }
   }, []);
+  const changeLanguage = (next: "ko" | "en") => { setLanguage(next); localStorage.setItem("blueline-language", next); };
+  const ko = language === "ko";
   const saveHistory = (value: string) => {
     const next = [value, ...history.filter((item) => item.toLowerCase() !== value.toLowerCase())].slice(0, 5);
     setHistory(next); localStorage.setItem("blueline-search-history", JSON.stringify(next));
@@ -93,19 +96,19 @@ export default function HomeClient() {
     );
   };
 
-  return <main className="app-shell">
-    <header className="app-topbar"><button className="brand-button" onClick={() => setScreen("home")} aria-label="BlueLine Busan home"><b>B</b> BLUE LINE <i>BUSAN</i></button><div><span className="online-dot" /> SEARCH-LED COAST GUIDE</div></header>
+  return <main className="app-shell" lang={language}>
+    <header className="app-topbar"><button className="brand-button" onClick={() => setScreen("home")} aria-label={ko ? "블루라인 부산 홈" : "BlueLine Busan home"}><b>B</b> BLUE LINE <i>BUSAN</i></button><div className="topbar-right"><span className="guide-label"><span className="online-dot" /> {ko ? "부산 해안 여행 가이드" : "SEARCH-LED COAST GUIDE"}</span><div className="global-language" role="group" aria-label={ko ? "언어 선택" : "Choose language"}><button className={ko ? "active" : ""} onClick={() => changeLanguage("ko")}>한국어</button><button className={!ko ? "active" : ""} onClick={() => changeLanguage("en")}>EN</button></div></div></header>
 
     {screen === "home" && <section className="home-screen">
       <div className="photo-panorama" aria-label="Busan coast panorama"><div className="photo-track"><div style={{ backgroundImage: "url('/busan-panorama-night.png')" }} /><div style={{ backgroundImage: "url('/busan-panorama-dusk.png')" }} /><div style={{ backgroundImage: "url('/busan-panorama-cliff.png')" }} /><div style={{ backgroundImage: "url('/busan-panorama-night.png')" }} /></div><div className="photo-overlay" /></div>
-      <div className="home-content"><p className="eyebrow">BUSAN, KOREA · COASTAL TRAVEL COMPANION</p><h1>Find your sea.<br /><em>Keep your way.</em></h1><p className="hero-lead">One search gives you the most efficient route, travel cost, nearby care and local food recommendations.</p>
-        <form className="main-search" onSubmit={(event) => search(event)}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search Haeundae, Gwangalli, Songdo…" aria-label="Search Busan coastal destination" /><button>Plan trip →</button></form><p className="notice" aria-live="polite">{notice}</p>
-        {history.length > 0 && <div className="recent"><strong>Saved searches</strong>{history.map((item) => <button key={item} onClick={() => { setQuery(item); search(undefined, item); }}>{item}</button>)}</div>}
-      </div><div className="panorama-label"><span>BUSAN COAST PANORAMA</span><b>Photos flow every 5 seconds</b><i /><i /><i /></div>
+      <div className="home-content"><p className="eyebrow">{ko ? "대한민국 부산 · 해안 여행 도우미" : "BUSAN, KOREA · COASTAL TRAVEL COMPANION"}</p><h1>{ko ? <>부산의 바다를 찾고,<br /><em>안전하게 여행하세요.</em></> : <>Find your sea.<br /><em>Keep your way.</em></>}</h1><p className="hero-lead">{ko ? "한 번의 검색으로 효율적인 경로와 비용, 주변 음식점과 안전 정보를 확인하세요." : "One search gives you the most efficient route, travel cost, nearby care and local food recommendations."}</p>
+        <form className="main-search" onSubmit={(event) => search(event)}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={ko ? "해운대, 광안리, 관광지를 검색하세요" : "Search Haeundae, Gwangalli, attractions…"} aria-label={ko ? "부산 관광지 검색" : "Search Busan coastal destination"} /><button>{ko ? "여행 검색 →" : "Plan trip →"}</button></form><p className="notice" aria-live="polite">{ko && notice === "Search a Busan coast or attraction to start." ? "부산의 바다나 관광지를 검색해 보세요." : notice}</p>
+        {history.length > 0 && <div className="recent"><strong>{ko ? "최근 검색" : "Saved searches"}</strong>{history.map((item) => <button key={item} onClick={() => { setQuery(item); search(undefined, item); }}>{item}</button>)}</div>}
+      </div><div className="panorama-label"><span>{ko ? "부산 해안 파노라마" : "BUSAN COAST PANORAMA"}</span><b>{ko ? "5초마다 사진이 바뀝니다" : "Photos flow every 5 seconds"}</b><i /><i /><i /></div>
     </section>}
 
     {screen === "planner" && <RoutePlanner onClose={() => setScreen("home")} />}
-    {screen === "search" && <UnifiedSearch initialQuery={searchedQuery} onClose={() => setScreen("home")} />}
+    {screen === "search" && <UnifiedSearch initialQuery={searchedQuery} onClose={() => setScreen("home")} language={language} />}
 
     {screen !== "home" && screen !== "planner" && screen !== "search" && <section className="app-view">
       <nav className="view-nav"><button onClick={() => setScreen("home")}>← Home</button><button className={screen === "plan" ? "active" : ""} onClick={() => setScreen("plan")}>Trip plan</button><button className={screen === "attractions" ? "active" : ""} onClick={() => setScreen("attractions")}>Attractions</button><button className={screen === "discover" ? "active" : ""} onClick={() => setScreen("discover")}>Food nearby</button><button className={screen === "safety" ? "active" : ""} onClick={() => setScreen("safety")}>Safety</button></nav>
