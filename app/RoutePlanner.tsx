@@ -52,7 +52,7 @@ export default function RoutePlanner({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (!map.current || !window.L) return;
     if (layer.current) layer.current.remove();
-    const group = window.L.layerGroup();
+    const group = window.L.featureGroup();
     stops.forEach((stop, index) => window.L.circleMarker([stop.lat, stop.lon], { radius: 9, color: "#143956", fillColor: "#d8f64e", fillOpacity: 1, weight: 2 }).bindTooltip(`${index + 1}. ${stop.name}`, { permanent: true, direction: "top" }).addTo(group));
     if (route) window.L.polyline(route.coordinates.map(([lon, lat]) => [lat, lon]), { color: "#177f84", weight: 6, opacity: .9 }).addTo(group);
     group.addTo(map.current); layer.current = group;
