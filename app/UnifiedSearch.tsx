@@ -17,6 +17,14 @@ type RouteData = {
   distance: number;
   legs: { from: string; to: string; distance: number }[];
 };
+type Restaurant = {
+  id: string;
+  name: string;
+  nameKo?: string;
+  cuisine?: string;
+  hours?: string;
+  distance: number;
+};
 declare global {
   interface Window {
     L?: any;
@@ -120,6 +128,15 @@ const genericRisk =
   "No place-specific alert is registered in this guide. Check weather, official closures and on-site safety signs before visiting.";
 const minutes = (meters: number) =>
   Math.max(1, Math.round((meters / 1000) * 4));
+const distanceKm = (a: Point, lat: number, lon: number) => {
+  const rad = (value: number) => (value * Math.PI) / 180;
+  const dLat = rad(lat - a.lat);
+  const dLon = rad(lon - a.lon);
+  const value =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(a.lat)) * Math.cos(rad(lat)) * Math.sin(dLon / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
+};
 const TOURISM_KEYWORDS = [
   "관광",
   "관광지",
@@ -148,14 +165,20 @@ async function findBusanPlace(value: string): Promise<Point> {
   );
   if (known) return known;
   const response = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=kr&q=${encodeURIComponent(`${clean}, Busan`)}`,
+    `https://nominatim.openstreetmap.org/search?format=json&namedetails=1&accept-language=en&limit=1&countrycodes=kr&q=${encodeURIComponent(`${clean}, Busan`)}`,
   );
   if (!response.ok) throw new Error("search unavailable");
   const results = await response.json();
   if (!results[0]) throw new Error("not found");
+  const names = results[0].namedetails || {};
   return {
     id: `search-${clean}-${results[0].lat}`,
-    name: results[0].display_name.split(",")[0] || clean,
+    name:
+      names["name:en"] ||
+      names.name ||
+      results[0].display_name.split(",")[0] ||
+      clean,
+    nameKo: names["name:ko"] || clean,
     lat: Number(results[0].lat),
     lon: Number(results[0].lon),
     risk: genericRisk,
@@ -186,6 +209,11 @@ export default function UnifiedSearch({
   const [stopInput, setStopInput] = useState("");
   const [route, setRoute] = useState<RouteData | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [foodResults, setFoodResults] = useState<Record<string, Restaurant[]>>(
+    {},
+  );
+  const [foodLoading, setFoodLoading] = useState(false);
+  const [foodError, setFoodError] = useState(false);
   const mapNode = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
   const layer = useRef<any>(null);
@@ -475,6 +503,59 @@ export default function UnifiedSearch({
 
   const roadKm = route ? route.distance / 1000 : null;
   const infoPlaces = stops.length ? stops : selected ? [selected] : [];
+  useEffect(() => {
+    if (tab !== "food" || !infoPlaces.length) return;
+    let cancelled = false;
+    setFoodLoading(true);
+    setFoodError(false);
+    Promise.all(
+      infoPlaces.map(async (place) => {
+        const query = `[out:json][timeout:15];nwr["amenity"~"^(restaurant|cafe|fast_food)$"](around:1200,${place.lat},${place.lon});out center 30;`;
+        const response = await fetch(
+          `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`,
+        );
+        if (!response.ok) throw new Error("restaurant search unavailable");
+        const data = await response.json();
+        const restaurants: Restaurant[] = data.elements
+          .map((item: any) => {
+            const lat = item.lat ?? item.center?.lat;
+            const lon = item.lon ?? item.center?.lon;
+            const tags = item.tags || {};
+            return {
+              id: `${item.type}-${item.id}`,
+              name:
+                tags["name:en"] ||
+                tags.name ||
+                tags["name:ko"] ||
+                "Local restaurant",
+              nameKo: tags["name:ko"] || tags.name,
+              cuisine: tags.cuisine,
+              hours: tags.opening_hours,
+              distance: lat && lon ? distanceKm(place, lat, lon) : 99,
+            };
+          })
+          .filter((item: Restaurant) => item.name !== "Local restaurant")
+          .sort((a: Restaurant, b: Restaurant) => a.distance - b.distance)
+          .slice(0, 4);
+        return [place.id, restaurants] as const;
+      }),
+    )
+      .then((entries) => {
+        if (!cancelled) setFoodResults(Object.fromEntries(entries));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFoodResults({});
+          setFoodError(true);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setFoodLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, stops, selected]);
   return (
     <section className="unified-search">
       <header>
@@ -687,21 +768,122 @@ export default function UnifiedSearch({
                       ? "각 목적지와 경유지 주변의 네이버 지도 음식점 검색을 제공합니다. 최신 사진, 평점과 영업시간은 네이버 지도에서 확인하세요."
                       : "Open Naver Map restaurant results for every destination and waypoint. Current photos, ratings and hours remain on Naver Map."}
                   </p>
-                  <div className="place-info-grid">{infoPlaces.map((place, index) => <section key={`food-${place.id}-${index}`}><b>{index + 1}. {displayName(place)}</b><span>{ko ? (index === 0 ? "목적지 주변" : "경유지 주변") : (index === 0 ? "Near destination" : "Near waypoint")}</span><a href={`https://map.naver.com/p/search/${encodeURIComponent(`${place.name} 맛집`)}`} target="_blank" rel="noreferrer">{ko ? "주변 음식점 보기 →" : "Find nearby food →"}</a></section>)}</div>
+                  {foodLoading && (
+                    <p className="food-loading">
+                      {ko
+                        ? "인근 음식점 정보를 찾고 있습니다…"
+                        : "Finding nearby restaurant details…"}
+                    </p>
+                  )}
+                  {foodError && (
+                    <p className="food-error">
+                      {ko
+                        ? "공개 지도 음식점 정보를 불러오지 못했습니다. 아래 네이버 지도 검색을 이용해 주세요."
+                        : "Public restaurant data is temporarily unavailable. Use the Naver Map links below."}
+                    </p>
+                  )}
+                  <div className="place-info-grid">
+                    {infoPlaces.map((place, index) => (
+                      <section key={`food-${place.id}-${index}`}>
+                        <b>
+                          {index + 1}. {displayName(place)}
+                        </b>
+                        <span>
+                          {ko
+                            ? index === 0
+                              ? "목적지 주변"
+                              : "경유지 주변"
+                            : index === 0
+                              ? "Near destination"
+                              : "Near waypoint"}
+                        </span>
+                        <div className="restaurant-briefs">
+                          {(foodResults[place.id] || []).map((restaurant) => (
+                            <article key={restaurant.id}>
+                              <strong>
+                                {ko
+                                  ? restaurant.nameKo || restaurant.name
+                                  : restaurant.name}
+                              </strong>
+                              <p>
+                                {restaurant.cuisine
+                                  ? restaurant.cuisine.replaceAll(";", ", ")
+                                  : ko
+                                    ? "음식 종류 정보 없음"
+                                    : "Cuisine not listed"}
+                              </p>
+                              <small>
+                                {restaurant.distance.toFixed(1)} km
+                                {restaurant.hours
+                                  ? ` · ${restaurant.hours}`
+                                  : ""}
+                              </small>
+                            </article>
+                          ))}
+                        </div>
+                        {!foodLoading &&
+                          !(foodResults[place.id] || []).length && (
+                            <p className="no-food-data">
+                              {ko
+                                ? "등록된 음식점 상세 정보가 없습니다."
+                                : "No detailed restaurant records found."}
+                            </p>
+                          )}
+                        <a
+                          href={`https://map.naver.com/p/search/${encodeURIComponent(`${place.name} 맛집`)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {ko
+                            ? "네이버 지도에서 더 보기 →"
+                            : "See more on Naver Map →"}
+                        </a>
+                      </section>
+                    ))}
+                  </div>
                 </article>
               )}
               {tab === "safety" && (
                 <article className="all-place-info">
                   <small>
-                    {ko ? "추가한 모든 장소의 안전 정보" : "SAFETY FOR ALL ADDED PLACES"}
+                    {ko
+                      ? "추가한 모든 장소의 안전 정보"
+                      : "SAFETY FOR ALL ADDED PLACES"}
                   </small>
                   <h3>
                     {ko
                       ? `${infoPlaces.length}개 장소에서 주의할 점`
                       : `Safety near ${infoPlaces.length} added place${infoPlaces.length === 1 ? "" : "s"}`}
                   </h3>
-                  <p>{ko ? "목적지와 경유지별 기본 주의사항을 확인하고, 방문 직전 최신 보도와 공식 안내를 다시 확인하세요." : "Review a safety note for every destination and waypoint, then check current reporting and official notices before visiting."}</p>
-                  <div className="place-info-grid safety-grid">{infoPlaces.map((place, index) => <section key={`safety-${place.id}-${index}`}><b>{index + 1}. {displayName(place)}</b><p>{ko ? place.riskKo || "등록된 장소별 주의사항이 없습니다. 현장 안내판과 날씨, 출입 통제를 확인하세요." : place.risk}</p><a href={`https://www.google.com/search?q=${encodeURIComponent(`${place.name} 부산 안전 주의`)}`} target="_blank" rel="noreferrer">{ko ? "최근 안전 정보 확인 →" : "Check recent safety information →"}</a></section>)}</div>
+                  <p>
+                    {ko
+                      ? "목적지와 경유지별 기본 주의사항을 확인하고, 방문 직전 최신 보도와 공식 안내를 다시 확인하세요."
+                      : "Review a safety note for every destination and waypoint, then check current reporting and official notices before visiting."}
+                  </p>
+                  <div className="place-info-grid safety-grid">
+                    {infoPlaces.map((place, index) => (
+                      <section key={`safety-${place.id}-${index}`}>
+                        <b>
+                          {index + 1}. {displayName(place)}
+                        </b>
+                        <p>
+                          {ko
+                            ? place.riskKo ||
+                              "등록된 장소별 주의사항이 없습니다. 현장 안내판과 날씨, 출입 통제를 확인하세요."
+                            : place.risk}
+                        </p>
+                        <a
+                          href={`https://www.google.com/search?q=${encodeURIComponent(`${place.name} 부산 안전 주의`)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {ko
+                            ? "최근 안전 정보 확인 →"
+                            : "Check recent safety information →"}
+                        </a>
+                      </section>
+                    ))}
+                  </div>
                 </article>
               )}
             </div>
