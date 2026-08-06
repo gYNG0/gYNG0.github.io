@@ -25,6 +25,11 @@ const aliases: Record<string, string[]> = {
 };
 const genericRisk = "No place-specific alert is registered in this guide. Check weather, official closures and on-site safety signs before visiting.";
 const minutes = (meters: number) => Math.max(1, Math.round((meters / 1000) * 4));
+const TOURISM_KEYWORDS = [
+  "관광", "관광지", "관광지 추천",
+  "tour", "tourist", "tourism", "attraction", "attractions",
+  "sightseeing", "landmark", "landmarks", "places to visit", "travel spots",
+];
 
 async function findBusanPlace(value: string): Promise<Point> {
   const clean = value.trim();
@@ -55,7 +60,7 @@ export default function UnifiedSearch({ initialQuery, onClose }: { initialQuery:
   const runSearch = async (event?: FormEvent, value = query) => {
     event?.preventDefault(); const clean = value.trim(); if (!clean) { setMessage("Enter a Busan place or tourist attraction."); return; }
     setLoading(true); setRoute(null); const normalized = clean.toLowerCase();
-    if (["관광", "관광지", "관광지 추천", "tour", "attractions"].some((word) => normalized.includes(word))) {
+    if (TOURISM_KEYWORDS.some((word) => normalized.includes(word))) {
       setPoints(BUSAN_ATTRACTIONS); setSelected(BUSAN_ATTRACTIONS[0]); setStops([BUSAN_ATTRACTIONS[0]]); setMessage("Busan's representative attractions are shown on the map. Select one for route, food and safety details."); setLoading(false); return;
     }
     try {
