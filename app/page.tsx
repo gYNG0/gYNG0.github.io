@@ -137,10 +137,25 @@ const hazards = [
 export default function Home() {
   const [selectedPlace, setSelectedPlace] = useState<PlaceKey>("haeundae");
   const [selectedRoute, setSelectedRoute] = useState("coast");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchNotice, setSearchNotice] = useState("Search a beach, bay or coastal landmark.");
+  const [incidentOpen, setIncidentOpen] = useState(false);
   const [language, setLanguage] = useState<"EN" | "KR">("EN");
   const [notice, setNotice] = useState("Route ready — choose a stop to update nearby care.");
 
   const place = destinations.find((item) => item.id === selectedPlace) ?? destinations[0];
+  const runSearch = () => {
+    const query = searchTerm.trim().toLowerCase();
+    const match = destinations.find((item) => item.name.toLowerCase().includes(query) || item.tag.toLowerCase().includes(query));
+    if (!query) { setSearchNotice("Type a destination name to begin."); return; }
+    if (match) {
+      setSelectedPlace(match.id);
+      setSearchNotice(`${match.name} is ready in your route planner.`);
+      document.getElementById("planner")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    setSearchNotice("No match yet. Try Haeundae, Gwangalli, Songdo or Taejongdae.");
+  };
   const care = careByPlace[selectedPlace];
   const route = useMemo(
     () => routeOptions.find((item) => item.id === selectedRoute) ?? routeOptions[0],
@@ -154,6 +169,42 @@ export default function Home() {
 
   return (
     <main>
+      <section className="home-hero" aria-labelledby="home-title">
+        <div className="panorama-stage" aria-label="Busan coastal panorama rotating every five seconds">
+          <div className="panorama-track" aria-hidden="true">
+            <div className="panorama panorama-haeundae"><span>HAEUNDAE / MORNING TIDE</span></div>
+            <div className="panorama panorama-gwangalli"><span>GWANGALLI / BRIDGE LIGHTS</span></div>
+            <div className="panorama panorama-songdo"><span>SONGDO / BAY WALK</span></div>
+            <div className="panorama panorama-taejongdae"><span>TAEJONGDAE / CLIFF COAST</span></div>
+          </div>
+          <div className="panorama-scrim" />
+        </div>
+        <div className="shell home-hero-content">
+          <nav className="home-nav" aria-label="BlueLine Busan navigation">
+            <a className="home-brand" href="#planner"><span className="home-brand-mark">B</span><span>BLUELINE <i>BUSAN</i></span></a>
+            <div><span className="nav-status"><i /> BUSAN COAST GUIDE</span><a className="nav-link" href="#safety">Safety guide</a></div>
+          </nav>
+          <div className="home-copy">
+            <p className="home-eyebrow">BUSAN, KOREA / COASTAL SAFETY COMPANION</p>
+            <h1 id="home-title">Find your sea,<br /><em>keep your way.</em></h1>
+            <p>Search Busan's coastal highlights, make a safer route, and keep urgent help one tap away.</p>
+            <form className="home-search" onSubmit={(event) => { event.preventDefault(); runSearch(); }}>
+              <label className="sr-only" htmlFor="coast-search">Search a coastal destination</label>
+              <span aria-hidden="true">Search</span>
+              <input id="coast-search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search Haeundae, Gwangalli, Songdo..." />
+              <button type="submit">Search <b>-&gt;</b></button>
+            </form>
+            <p className="search-feedback" aria-live="polite">{searchNotice}</p>
+            <div className="home-actions">
+              <a className="home-emergency" href="tel:119"><span>119</span><div><strong>Emergency call</strong><small>Ambulance & rescue</small></div><b>-&gt;</b></a>
+              <button className="home-incidents" onClick={() => setIncidentOpen(true)}><span className="incident-icon">!</span><div><strong>View incident areas</strong><small>Coastal caution board</small></div><b>-&gt;</b></button>
+            </div>
+          </div>
+          <div className="panorama-caption"><span>NOW SHOWING</span><strong>Busan's coastal panorama</strong><div className="pano-dots"><i /><i /><i /><i /></div><small>Changes every 5 seconds</small></div>
+        </div>
+      </section>
+
+      {incidentOpen && <div className="incident-modal" role="dialog" aria-modal="true" aria-labelledby="incident-title"><button className="incident-backdrop" aria-label="Close incident areas" onClick={() => setIncidentOpen(false)} /><section className="incident-sheet"><div className="incident-sheet-head"><div><p>COASTAL CAUTION BOARD</p><h2 id="incident-title">Incident areas</h2></div><button onClick={() => setIncidentOpen(false)} aria-label="Close">x</button></div><p className="incident-intro">These are registered safety caution areas, not a live incident feed. In immediate danger, call 119.</p><div className="incident-list">{hazards.map((hazard, index) => <article key={hazard.place}><span>0{index + 1}</span><div><small>{hazard.level}</small><h3>{hazard.place}</h3><p>{hazard.text}</p></div><a href="#safety" onClick={() => setIncidentOpen(false)}>Details -&gt;</a></article>)}</div><a className="incident-call" href="tel:119"><span>119</span> Call emergency services <b>-&gt;</b></a></section></div>}
       <section className="hero" aria-labelledby="page-title">
         <div className="shell">
           <nav className="topbar" aria-label="Main navigation">
