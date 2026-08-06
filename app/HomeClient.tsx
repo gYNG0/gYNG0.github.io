@@ -172,10 +172,9 @@ export default function Home() {
       <section className="home-hero" aria-labelledby="home-title">
         <div className="panorama-stage" aria-label="Busan coastal panorama rotating every five seconds">
           <div className="panorama-track" aria-hidden="true">
-            <div className="panorama panorama-haeundae"><span>HAEUNDAE / MORNING TIDE</span></div>
-            <div className="panorama panorama-gwangalli"><span>GWANGALLI / BRIDGE LIGHTS</span></div>
-            <div className="panorama panorama-songdo"><span>SONGDO / BAY WALK</span></div>
-            <div className="panorama panorama-taejongdae"><span>TAEJONGDAE / CLIFF COAST</span></div>
+            <div className="panorama panorama-photo" style={{ backgroundImage: "url('/busan-panorama-night.png')" }}><span>BUSAN NIGHT / MARINE CITY</span></div>
+            <div className="panorama panorama-photo" style={{ backgroundImage: "url('/busan-panorama-dusk.png')" }}><span>GWANGALLI / SUNSET COAST</span></div>
+            <div className="panorama panorama-photo" style={{ backgroundImage: "url('/busan-panorama-cliff.png')" }}><span>TAEJONGDAE / CLIFF WALK</span></div>
           </div>
           <div className="panorama-scrim" />
         </div>
@@ -200,7 +199,7 @@ export default function Home() {
               <button className="home-incidents" onClick={() => setIncidentOpen(true)}><span className="incident-icon">!</span><div><strong>View incident areas</strong><small>Coastal caution board</small></div><b>-&gt;</b></button>
             </div>
           </div>
-          <div className="panorama-caption"><span>NOW SHOWING</span><strong>Busan's coastal panorama</strong><div className="pano-dots"><i /><i /><i /><i /></div><small>Changes every 5 seconds</small></div>
+          <div className="panorama-caption"><span>NOW SHOWING</span><strong>Busan's coastal panorama</strong><div className="pano-dots"><i /><i /><i /></div><small>Changes every 5 seconds</small></div>
         </div>
       </section>
 
