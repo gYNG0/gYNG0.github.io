@@ -2,9 +2,10 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import RoutePlanner from "./RoutePlanner";
+import UnifiedSearch from "./UnifiedSearch";
 
 type PlaceKey = "haeundae" | "gwangalli" | "songdo" | "taejongdae";
-type Screen = "home" | "plan" | "discover" | "attractions" | "safety" | "planner";
+type Screen = "home" | "plan" | "discover" | "attractions" | "safety" | "planner" | "search";
 
 type Place = {
   id: PlaceKey;
@@ -60,6 +61,7 @@ export default function HomeClient() {
   const [userPosition, setUserPosition] = useState<{ lat: number; lon: number } | null>(null);
   const [locationMessage, setLocationMessage] = useState("Use your location to see estimated distance and walking time.");
   const [locationHelpOpen, setLocationHelpOpen] = useState(false);
+  const [searchedQuery, setSearchedQuery] = useState("");
   const place = useMemo(() => places.find((item) => item.id === selected) ?? places[0], [selected]);
 
   useEffect(() => {
@@ -73,12 +75,7 @@ export default function HomeClient() {
     event?.preventDefault();
     const clean = value.trim();
     if (!clean) { setNotice("Enter Haeundae, Gwangalli, Songdo or Taejongdae."); return; }
-    const normalized = clean.toLowerCase();
-    const attractionKeyword = ["관광", "관광지", "관광지 추천", "tour", "attraction", "recommend"].some((keyword) => normalized.includes(keyword));
-    if (attractionKeyword) { saveHistory(clean); setNotice("Tourist attractions are ordered by Google rating."); setScreen("attractions"); return; }
-    const found = places.find((item) => item.name.toLowerCase().includes(normalized) || item.aliases.some((alias) => alias.includes(normalized)));
-    if (found) { setSelected(found.id); saveHistory(clean); setNotice(`${found.name} is ready: fastest transit, nearby hospital, and restaurant picks.`); setScreen("plan"); }
-    else { saveHistory(clean); setNotice(`Showing restaurant discovery for “${clean}”. Try a coastal destination for transit details.`); setScreen("discover"); }
+    saveHistory(clean); setSearchedQuery(clean); setNotice(`Searching every feature for “${clean}”.`); setScreen("search");
   };
   const choose = (id: PlaceKey) => { setSelected(id); setScreen("plan"); setNotice(`${places.find((item) => item.id === id)?.name} plan updated.`); };
   const requestLocation = () => {
@@ -97,20 +94,20 @@ export default function HomeClient() {
   };
 
   return <main className="app-shell">
-    <header className="app-topbar"><button className="brand-button" onClick={() => setScreen("home")} aria-label="BlueLine Busan home"><b>B</b> BLUELINE <i>BUSAN</i></button><div><span className="online-dot" /> COAST GUIDE <button className="top-emergency" onClick={() => setScreen("safety")}>Safety board</button></div></header>
+    <header className="app-topbar"><button className="brand-button" onClick={() => setScreen("home")} aria-label="BlueLine Busan home"><b>B</b> BLUE LINE <i>BUSAN</i></button><div><span className="online-dot" /> SEARCH-LED COAST GUIDE</div></header>
 
     {screen === "home" && <section className="home-screen">
       <div className="photo-panorama" aria-label="Busan coast panorama"><div className="photo-track"><div style={{ backgroundImage: "url('/busan-panorama-night.png')" }} /><div style={{ backgroundImage: "url('/busan-panorama-dusk.png')" }} /><div style={{ backgroundImage: "url('/busan-panorama-cliff.png')" }} /><div style={{ backgroundImage: "url('/busan-panorama-night.png')" }} /></div><div className="photo-overlay" /></div>
       <div className="home-content"><p className="eyebrow">BUSAN, KOREA · COASTAL TRAVEL COMPANION</p><h1>Find your sea.<br /><em>Keep your way.</em></h1><p className="hero-lead">One search gives you the most efficient route, travel cost, nearby care and local food recommendations.</p>
         <form className="main-search" onSubmit={(event) => search(event)}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search Haeundae, Gwangalli, Songdo…" aria-label="Search Busan coastal destination" /><button>Plan trip →</button></form><p className="notice" aria-live="polite">{notice}</p>
-        <div className="home-grid"><button onClick={() => setScreen("planner")}><span>↗</span><b>Route planner</b><small>Car & taxi road route</small></button><button onClick={() => setScreen("safety")}><span>!</span><b>Safety board</b><small>Incident-prone areas</small></button><button onClick={() => setScreen("discover")}><span>★</span><b>Find food</b><small>Naver rating guide</small></button></div>
         {history.length > 0 && <div className="recent"><strong>Saved searches</strong>{history.map((item) => <button key={item} onClick={() => { setQuery(item); search(undefined, item); }}>{item}</button>)}</div>}
       </div><div className="panorama-label"><span>BUSAN COAST PANORAMA</span><b>Photos flow every 5 seconds</b><i /><i /><i /></div>
     </section>}
 
     {screen === "planner" && <RoutePlanner onClose={() => setScreen("home")} />}
+    {screen === "search" && <UnifiedSearch initialQuery={searchedQuery} onClose={() => setScreen("home")} />}
 
-    {screen !== "home" && screen !== "planner" && <section className="app-view">
+    {screen !== "home" && screen !== "planner" && screen !== "search" && <section className="app-view">
       <nav className="view-nav"><button onClick={() => setScreen("home")}>← Home</button><button className={screen === "plan" ? "active" : ""} onClick={() => setScreen("plan")}>Trip plan</button><button className={screen === "attractions" ? "active" : ""} onClick={() => setScreen("attractions")}>Attractions</button><button className={screen === "discover" ? "active" : ""} onClick={() => setScreen("discover")}>Food nearby</button><button className={screen === "safety" ? "active" : ""} onClick={() => setScreen("safety")}>Safety</button></nav>
       {screen === "plan" && <section className="plan-view"><p className="eyebrow dark">YOUR SMART COAST ROUTE</p><h2>{place.name}<span> optimized for time & fare</span></h2><form className="compact-search" onSubmit={(event) => search(event)}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search another destination"/><button>Search</button></form><p className="notice dark-notice">{notice}</p><div className="place-tabs">{places.map((item) => <button key={item.id} className={item.id === selected ? "active" : ""} onClick={() => choose(item.id)}>{item.name}</button>)}</div><div className="plan-cards"><article className="route-result"><small>BEST VALUE ROUTE</small><h3>{place.transport}</h3><p>Recommended for a straightforward coastal visit with the lowest usual public-transport cost.</p><div className="metrics"><div><b>{place.time}</b><span>Estimated time</span></div><div><b>{place.fare}</b><span>Transport fare</span></div><div><b>1 transfer</b><span>Simple connection</span></div></div><a target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.name}, Busan, South Korea`)}`}>Open in Google Maps →</a></article><article className="hospital-result"><small>NEARBY HOSPITAL</small><span className="hospital-symbol">+</span><h3>{place.hospital.name}</h3><p>Emergency care option · {place.hospital.time}</p><a target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.hospital.query)}`}>View directions →</a></article></div><button className="next-view" onClick={() => setScreen("discover")}>See highly rated food near {place.name} →</button></section>}
 
