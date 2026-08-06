@@ -44,3 +44,7 @@ footer { padding: 28px 0; background: var(--paper); }.footer-inner { display: fl
 @keyframes fluid-panorama { 0%,20%{transform:translateX(0)} 25%,45%{transform:translateX(-25%)} 50%,70%{transform:translateX(-50%)} 75%,100%{transform:translateX(-75%)} }
 @media (max-width:720px) { .app-topbar { padding:0 18px; }.app-topbar>div { font-size:0; }.top-emergency { margin-left:0; font-size:11px!important; }.home-content { width:calc(100% - 32px); padding-top:74px; }.home-content h1 { letter-spacing:-3px; }.home-grid,.plan-cards,.restaurant-grid,.hazard-grid { grid-template-columns:1fr; }.home-grid { max-width:430px; }.panorama-label { right:18px; left:18px; bottom:22px; }.view-nav { overflow:auto; padding:14px 16px; }.view-nav button { flex:0 0 auto; }.plan-view,.discover-view,.safety-view { width:calc(100% - 32px); padding:42px 0 65px; }.metrics { grid-template-columns:1fr; }.metrics div { border-left:0; border-top:1px solid #dce2e6; }.plan-cards article { padding:24px; } }
 @media (prefers-reduced-motion:reduce) { .photo-track { animation:none; } }
+
+.home-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 520px; }
+.next-view { display: inline-block; text-decoration: none; }
+.tourist-map-link { background: #248c84; }
