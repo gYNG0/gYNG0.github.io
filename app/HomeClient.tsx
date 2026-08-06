@@ -81,9 +81,18 @@ export default function HomeClient() {
   };
   const choose = (id: PlaceKey) => { setSelected(id); setScreen("plan"); setNotice(`${places.find((item) => item.id === id)?.name} plan updated.`); };
   const requestLocation = () => {
-    if (!navigator.geolocation) { setLocationMessage("Location is not supported by this browser."); return; }
-    setLocationMessage("Requesting your location…");
-    navigator.geolocation.getCurrentPosition((position) => { setUserPosition({ lat: position.coords.latitude, lon: position.coords.longitude }); setLocationMessage("Location connected. Walking estimates use 5 minutes per kilometer."); }, () => setLocationMessage("Location permission was not granted. You can still open each restaurant in Naver Map."), { enableHighAccuracy: false, timeout: 10000 });
+    if (!navigator.geolocation) { setLocationMessage("This browser does not support location. Open the site in a current mobile browser or Chrome."); return; }
+    if (!window.isSecureContext) { setLocationMessage("Location requires a secure HTTPS connection."); return; }
+    setLocationMessage("Requesting your location… Choose Allow in the browser permission prompt.");
+    navigator.geolocation.getCurrentPosition(
+      (position) => { setUserPosition({ lat: position.coords.latitude, lon: position.coords.longitude }); setLocationMessage("Location connected. Walking estimates use 5 minutes per kilometer."); },
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) setLocationMessage("Location is blocked. Use the lock icon in the browser address bar, allow Location for this site, then press this button again.");
+        else if (error.code === error.TIMEOUT) setLocationMessage("Location request timed out. Check your network or GPS, then try again.");
+        else setLocationMessage("Your location could not be determined. Check device location settings, then try again.");
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+    );
   };
 
   return <main className="app-shell">
