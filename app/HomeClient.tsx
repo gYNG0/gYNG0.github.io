@@ -205,6 +205,24 @@ export default function Home() {
       </section>
 
       {incidentOpen && <div className="incident-modal" role="dialog" aria-modal="true" aria-labelledby="incident-title"><button className="incident-backdrop" aria-label="Close incident areas" onClick={() => setIncidentOpen(false)} /><section className="incident-sheet"><div className="incident-sheet-head"><div><p>COASTAL CAUTION BOARD</p><h2 id="incident-title">Incident areas</h2></div><button onClick={() => setIncidentOpen(false)} aria-label="Close">x</button></div><p className="incident-intro">These are registered safety caution areas, not a live incident feed. In immediate danger, call 119.</p><div className="incident-list">{hazards.map((hazard, index) => <article key={hazard.place}><span>0{index + 1}</span><div><small>{hazard.level}</small><h3>{hazard.place}</h3><p>{hazard.text}</p></div><a href="#safety" onClick={() => setIncidentOpen(false)}>Details -&gt;</a></article>)}</div><a className="incident-call" href="tel:119"><span>119</span> Call emergency services <b>-&gt;</b></a></section></div>}
+
+      <section className="google-map-section" id="tourist-map" aria-labelledby="tourist-map-title">
+        <div className="shell google-map-grid">
+          <div className="google-map-copy">
+            <p className="map-eyebrow">GOOGLE MAPS / TOURIST LOCATIONS</p>
+            <h2 id="tourist-map-title">See every stop<br />before you go.</h2>
+            <p>Select a coastal attraction to place it on the map. The map view and the route planner stay in sync.</p>
+            <div className="map-location-list" role="group" aria-label="Busan coastal tourist locations">
+              {destinations.map((item, index) => <button key={item.id} className={selectedPlace === item.id ? "map-location-active" : ""} onClick={() => selectPlace(item.id)}><span>0{index + 1}</span><strong>{item.name}</strong><small>{item.tag}</small></button>)}
+            </div>
+            <a className="google-map-link" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.name}, Busan, South Korea`)}`} target="_blank" rel="noreferrer">Open {place.name} in Google Maps <b>-&gt;</b></a>
+          </div>
+          <div className="google-map-frame-wrap">
+            <div className="map-frame-label"><span>SELECTED ATTRACTION</span><strong>{place.name}</strong></div>
+            <iframe className="google-map-frame" title={`Google Map showing ${place.name}`} src={`https://www.google.com/maps?q=${encodeURIComponent(`${place.name}, Busan, South Korea`)}&output=embed`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+          </div>
+        </div>
+      </section>
       <section className="hero" aria-labelledby="page-title">
         <div className="shell">
           <nav className="topbar" aria-label="Main navigation">
