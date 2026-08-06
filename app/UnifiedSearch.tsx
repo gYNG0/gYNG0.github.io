@@ -86,21 +86,26 @@ export default function UnifiedSearch({ initialQuery, onClose, language }: { ini
     if (route) window.L.polyline(route.coordinates.map(([lon, lat]) => [lat, lon]), { color: "#177f84", weight: 6 }).addTo(group); group.addTo(map.current); layer.current = group; const bounds = group.getBounds(); if (bounds.isValid()) map.current.fitBounds(bounds, { padding: [35, 35] });
   }, [points, selected, route, stops, origin, mapReady]);
 
+  useEffect(() => {
+    if (selected && stops.length === 0) setStops([selected]);
+  }, [selected, stops.length]);
+
   const addWaypoint = async (event: FormEvent) => {
     event.preventDefault(); const clean = stopInput.trim(); if (!clean) { setMessage(say("Enter a waypoint name first.", "경유지 이름을 먼저 입력하세요.")); return; }
     setLoading(true);
-    try { const found = await findBusanPlace(clean); if (stops.some((stop) => stop.id === found.id || (stop.lat === found.lat && stop.lon === found.lon))) setMessage(say(`${found.name} is already in the route.`, `${displayName(found)}은(는) 이미 경로에 있습니다.`)); else { setStops((items) => [...items, found]); setRoute(null); setStopInput(""); setMessage(say(`${found.name} added as waypoint ${stops.length + 1}.`, `${displayName(found)}을(를) ${stops.length + 1}번째 경유지로 추가했습니다.`)); } } catch { setMessage(say("The waypoint could not be found. Try a more specific Busan place name.", "경유지를 찾지 못했습니다. 더 구체적인 부산 지명을 입력해 주세요.")); }
+    try { const found = await findBusanPlace(clean); if (stops.some((stop) => stop.id === found.id || (stop.lat === found.lat && stop.lon === found.lon))) setMessage(say(`${found.name} is already in the route.`, `${displayName(found)}은(는) 이미 경로에 있습니다.`)); else { setStops((items) => [...items, found]); setPoints((items) => items.some((item) => item.id === found.id) ? items : [...items, found]); setSelected(found); setRoute(null); setStopInput(""); setMessage(say(`${found.name} added as waypoint ${stops.length + 1}. Food and safety now follow this place.`, `${displayName(found)}을(를) ${stops.length + 1}번째 경유지로 추가했습니다. 음식점과 안전 정보도 이 장소를 기준으로 변경했습니다.`)); } } catch { setMessage(say("The waypoint could not be found. Try a more specific Busan place name.", "경유지를 찾지 못했습니다. 더 구체적인 부산 지명을 입력해 주세요.")); }
     setLoading(false);
   };
 
   const calculateRoute = async (start: Point) => {
-    if (!stops.length) { setMessage(say("Add at least one destination or waypoint.", "목적지 또는 경유지를 하나 이상 추가하세요.")); return; }
+    const destinations = stops.length ? stops : selected ? [selected] : [];
+    if (!destinations.length) { setMessage(say("Add at least one destination or waypoint.", "목적지 또는 경유지를 하나 이상 추가하세요.")); return; }
     setLoading(true); setRoute(null); setMessage(say("Calculating the road route…", "도로 경로를 계산하고 있습니다…"));
     try {
-      const all = [start, ...stops]; const coordinates = all.map((point) => `${point.lon},${point.lat}`).join(";");
+      const all = [start, ...destinations]; const coordinates = all.map((point) => `${point.lon},${point.lat}`).join(";");
       const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson&steps=false`);
       if (!response.ok) throw new Error("route unavailable"); const data = await response.json(); const found = data.routes?.[0]; if (!found) throw new Error("no route");
-      setOrigin(start); setRoute({ coordinates: found.geometry.coordinates, distance: found.distance, legs: found.legs.map((leg: { distance: number }, index: number) => ({ from: displayName(all[index]), to: displayName(all[index + 1]), distance: leg.distance })) }); setMessage(say(`Route calculated through ${stops.length} destination${stops.length > 1 ? "s" : ""}.`, `${stops.length}개 목적지를 지나는 경로를 계산했습니다.`));
+      setOrigin(start); setRoute({ coordinates: found.geometry.coordinates, distance: found.distance, legs: found.legs.map((leg: { distance: number }, index: number) => ({ from: displayName(all[index]), to: displayName(all[index + 1]), distance: leg.distance })) }); setMessage(say(`Route calculated through ${destinations.length} destination${destinations.length > 1 ? "s" : ""}.`, `${destinations.length}개 목적지를 지나는 경로를 계산했습니다.`));
     } catch { setMessage(say("The road route could not be calculated. Please try again shortly.", "도로 경로를 계산하지 못했습니다. 잠시 후 다시 시도해 주세요.")); }
     setLoading(false);
   };
@@ -114,6 +119,7 @@ export default function UnifiedSearch({ initialQuery, onClose, language }: { ini
       { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 },
     );
   };
+
 
   const roadKm = route ? route.distance / 1000 : null;
   const foodLink = selected ? `https://map.naver.com/p/search/${encodeURIComponent(`${selected.name} 맛집`)}` : "#";
