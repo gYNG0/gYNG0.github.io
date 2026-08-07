@@ -24,6 +24,8 @@ type Restaurant = {
   cuisine?: string;
   hours?: string;
   distance: number;
+  lat: number;
+  lon: number;
 };
 type Clinic = {
   id: string;
@@ -34,6 +36,8 @@ type Clinic = {
   phone?: string;
   hours?: string;
   distance: number;
+  lat: number;
+  lon: number;
 };
 declare global {
   interface Window {
@@ -222,6 +226,69 @@ const MAJOR_HOSPITALS = [
   },
 ];
 
+const BUSAN_STATION_ORIGIN: Point = {
+  id: "busan-station-origin",
+  name: "Busan Station",
+  nameKo: "부산역",
+  lat: 35.1151,
+  lon: 129.0414,
+  risk: "",
+};
+const GIMHAE_AIRPORT_ORIGIN: Point = {
+  id: "gimhae-airport-origin",
+  name: "Gimhae International Airport",
+  nameKo: "김해국제공항",
+  lat: 35.1796,
+  lon: 128.9382,
+  risk: "",
+};
+const isInBounds = (
+  lat: number,
+  lon: number,
+  bounds: [number, number, number, number],
+) =>
+  lat >= bounds[0] && lat <= bounds[1] && lon >= bounds[2] && lon <= bounds[3];
+const chooseRouteOrigin = (lat: number, lon: number): Point => {
+  if (isInBounds(lat, lon, [34.83, 35.4, 128.75, 129.33]))
+    return {
+      id: "my-location",
+      name: "My location",
+      nameKo: "현재 위치",
+      lat,
+      lon,
+      risk: "",
+    };
+  if (isInBounds(lat, lon, [33.0, 38.7, 124.5, 132.0]))
+    return BUSAN_STATION_ORIGIN;
+  return GIMHAE_AIRPORT_ORIGIN;
+};
+const resolveRouteOrigin = async (lat: number, lon: number): Promise<Point> => {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&zoom=10&accept-language=en&lat=${lat}&lon=${lon}`,
+    );
+    if (!response.ok) throw new Error("reverse geocoding unavailable");
+    const address = (await response.json()).address || {};
+    if (address.country_code !== "kr") return GIMHAE_AIRPORT_ORIGIN;
+    const region = [address.state, address.city, address.county]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return region.includes("busan") || region.includes("부산")
+      ? {
+          id: "my-location",
+          name: "My location",
+          nameKo: "현재 위치",
+          lat,
+          lon,
+          risk: "",
+        }
+      : BUSAN_STATION_ORIGIN;
+  } catch {
+    return chooseRouteOrigin(lat, lon);
+  }
+};
+
 async function findBusanPlace(value: string): Promise<Point> {
   const clean = value.trim();
   const normalized = clean.toLowerCase();
@@ -362,6 +429,14 @@ export default function UnifiedSearch({
       window.L.control
         .scale({ metric: true, imperial: false, position: "bottomleft" })
         .addTo(map.current);
+      const legend = window.L.control({ position: "bottomright" });
+      legend.onAdd = () => {
+        const node = window.L.DomUtil.create("div", "map-poi-legend");
+        node.innerHTML =
+          '<span><i class="food-marker-dot"></i>음식점 / Food</span><span><i class="hospital-marker-dot"></i>병원 / Hospital</span>';
+        return node;
+      };
+      legend.addTo(map.current);
       setMapReady(true);
     };
     if (window.L) ready();
@@ -413,11 +488,55 @@ export default function UnifiedSearch({
         route.coordinates.map(([lon, lat]) => [lat, lon]),
         { color: "#177f84", weight: 6 },
       ).addTo(group);
+    new Map(
+      Object.values(foodResults)
+        .flat()
+        .map((restaurant) => [restaurant.id, restaurant]),
+    ).forEach((restaurant) =>
+      window.L.circleMarker([restaurant.lat, restaurant.lon], {
+        radius: 7,
+        color: "#ffffff",
+        fillColor: "#e5483f",
+        fillOpacity: 1,
+        weight: 2,
+      })
+        .bindTooltip(
+          `Food · ${ko ? restaurant.nameKo || restaurant.name : restaurant.name}`,
+        )
+        .addTo(group),
+    );
+    new Map(
+      Object.values(clinicResults)
+        .flat()
+        .map((clinic) => [clinic.id, clinic]),
+    ).forEach((clinic) =>
+      window.L.circleMarker([clinic.lat, clinic.lon], {
+        radius: 7,
+        color: "#ffffff",
+        fillColor: "#1d9b62",
+        fillOpacity: 1,
+        weight: 2,
+      })
+        .bindTooltip(
+          `Hospital · ${ko ? clinic.nameKo || clinic.name : clinic.name}`,
+        )
+        .addTo(group),
+    );
     group.addTo(map.current);
     layer.current = group;
     const bounds = group.getBounds();
     if (bounds.isValid()) map.current.fitBounds(bounds, { padding: [35, 35] });
-  }, [points, selected, route, stops, origin, mapReady]);
+  }, [
+    points,
+    selected,
+    route,
+    stops,
+    origin,
+    mapReady,
+    foodResults,
+    clinicResults,
+    ko,
+  ]);
 
   useEffect(() => {
     if (selected && stops.length === 0) setStops([selected]);
@@ -516,8 +635,8 @@ export default function UnifiedSearch({
       });
       setMessage(
         say(
-          `Route calculated through ${destinations.length} destination${destinations.length > 1 ? "s" : ""}.`,
-          `${destinations.length}개 목적지를 지나는 경로를 계산했습니다.`,
+          `Route calculated from ${start.name} through ${destinations.length} destination${destinations.length > 1 ? "s" : ""}.`,
+          `${displayName(start)}에서 출발해 ${destinations.length}개 목적지를 지나는 경로를 계산했습니다.`,
         ),
       );
     } catch {
@@ -546,15 +665,13 @@ export default function UnifiedSearch({
       say("Waiting for location permission…", "위치 권한을 기다리고 있습니다…"),
     );
     navigator.geolocation.getCurrentPosition(
-      (position) =>
-        calculateRoute({
-          id: "my-location",
-          name: "My location",
-          nameKo: "현재 위치",
-          lat: position.coords.latitude,
-          lon: position.coords.longitude,
-          risk: "",
-        }),
+      async (position) =>
+        calculateRoute(
+          await resolveRouteOrigin(
+            position.coords.latitude,
+            position.coords.longitude,
+          ),
+        ),
       (error) => {
         const detail =
           error.code === 1
@@ -610,6 +727,8 @@ export default function UnifiedSearch({
                     ? "fast food"
                     : "restaurant",
               distance: distanceKm(place, Number(item.lat), Number(item.lon)),
+              lat: Number(item.lat),
+              lon: Number(item.lon),
             };
           })
           .filter((item: Restaurant) => item.name !== "Local restaurant")
@@ -641,7 +760,7 @@ export default function UnifiedSearch({
     };
   }, [stops, selected]);
   useEffect(() => {
-    if (tab !== "care" || !infoPlaces.length) return;
+    if (!infoPlaces.length) return;
     let cancelled = false;
     setClinicLoading(true);
     setClinicError(false);
@@ -677,6 +796,8 @@ export default function UnifiedSearch({
                     Number(item.lat),
                     Number(item.lon),
                   ),
+                  lat: Number(item.lat),
+                  lon: Number(item.lon),
                 };
               })
               .filter(
@@ -703,6 +824,8 @@ export default function UnifiedSearch({
               nameKo: major.nameKo,
               kind: major.kind,
               distance: major.distance,
+              lat: major.lat,
+              lon: major.lon,
             },
             ...local,
           ],
@@ -728,7 +851,7 @@ export default function UnifiedSearch({
     return () => {
       cancelled = true;
     };
-  }, [tab, stops, selected]);
+  }, [stops, selected]);
   return (
     <section className="unified-search">
       <header>
@@ -898,8 +1021,8 @@ export default function UnifiedSearch({
                   </button>
                   <p className="route-note">
                     {ko
-                      ? "위치 권한이 필요합니다. 예상 시간은 도로 1km당 4분이며 실시간 교통과 신호 대기는 포함하지 않습니다."
-                      : "Location requires browser permission. Estimated time is 4 minutes per road kilometer and excludes live traffic and signals."}
+                      ? "부산 안에서는 현재 위치, 국내의 부산 밖에서는 부산역, 해외에서는 김해국제공항을 출발지로 사용합니다. 예상 시간은 도로 1km당 4분이며 실시간 교통과 신호 대기는 포함하지 않습니다."
+                      : "Origin rule: current location in Busan, Busan Station elsewhere in Korea, and Gimhae Airport outside Korea. Time is estimated at 4 minutes per road kilometer and excludes live traffic and signals."}
                   </p>
                   {roadKm !== null && (
                     <>
