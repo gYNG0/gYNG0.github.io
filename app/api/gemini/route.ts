@@ -130,17 +130,35 @@ export async function POST(request: NextRequest) {
     if (!rawAnswer) throw new Error("empty response");
     const multipleRecommendation = rawAnswer.match(/\[\[ADD_PLACES:(.+?)\]\]/i);
     const recommendation = rawAnswer.match(/\[\[ADD_PLACE:(.+?)\]\]/i);
-    const recommendedPlaces =
+    let recommendedPlaces =
       multipleRecommendation?.[1]
         ?.split("|")
         .map((place: string) => place.trim())
         .filter(Boolean)
         .slice(0, 8) ||
       (recommendation?.[1]?.trim() ? [recommendation[1].trim()] : []);
-    const answer = rawAnswer
+    let answer = rawAnswer
       .replace(/\s*\[\[ADD_PLACES:.+?\]\]\s*/gi, "")
       .replace(/\s*\[\[ADD_PLACE:.+?\]\]\s*/gi, "")
       .trim();
+    const broadAttractionRequest =
+      /^(명소|관광 ?명소|관광지|attractions?|landmarks?|sightseeing|名所|観光地|名胜|景点)[.!?\s]*$/i.test(
+        message,
+      );
+    if (broadAttractionRequest) {
+      recommendedPlaces = [
+        "Gwangalli Beach",
+        "The Bay 101",
+        "Hwangnyeongsan Observatory",
+      ];
+      answer = /[가-힣]/.test(message)
+        ? "부산의 대표 명소 3곳을 추천합니다. 광안리 해수욕장은 광안대교 야경과 해변 산책을 즐기기 좋고, 더베이101은 마린시티의 반영 야경으로 유명합니다. 황령산 전망대에서는 부산 도심과 바다를 한눈에 볼 수 있습니다. 추천 순서대로 지도와 경유지에 추가했습니다."
+        : /(名所|観光地|[ぁ-んァ-ヶ])/.test(message)
+          ? "釜山の代表的な名所3か所をご案内します。広安里海水浴場では広安大橋の夜景、ザ・ベイ101ではマリンシティの水辺の景色、荒嶺山展望台では釜山の街と海のパノラマを楽しめます。おすすめ順に地図と経由地へ追加しました。"
+          : /[\u4e00-\u9fff]/.test(message)
+            ? "推荐三个釜山代表性景点：广安里海水浴场适合欣赏广安大桥夜景，The Bay 101以海云台滨水夜景闻名，荒岭山观景台可以俯瞰釜山市区与大海。已按推荐顺序添加到地图和途经点。"
+            : "Here are three representative Busan attractions: Gwangalli Beach for Gwangan Bridge night views, The Bay 101 for its waterfront Marine City scenery, and Hwangnyeongsan Observatory for a panorama of the city and sea. They were added to the map and route stops in the suggested order.";
+    }
     return NextResponse.json({
       answer,
       model: activeModel,
