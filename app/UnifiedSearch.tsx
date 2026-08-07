@@ -1575,14 +1575,50 @@ export default function UnifiedSearch({
 
   const moveStop = (from: number, to: number) => {
     if (from === to || to < 0 || to >= stops.length) return;
+    const previousPositions = new Map(
+      Array.from(
+        document.querySelectorAll<HTMLElement>(
+          ".waypoint-list [data-stop-key]",
+        ),
+      ).map((element) => [
+        element.dataset.stopKey || "",
+        element.getBoundingClientRect().top,
+      ]),
+    );
     setStops((items) => {
       const next = [...items];
       const [moved] = next.splice(from, 1);
       next.splice(to, 0, moved);
       return next;
     });
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          document
+            .querySelectorAll<HTMLElement>(".waypoint-list [data-stop-key]")
+            .forEach((element) => {
+              const previousTop = previousPositions.get(
+                element.dataset.stopKey || "",
+              );
+              if (previousTop === undefined) return;
+              const distance =
+                previousTop - element.getBoundingClientRect().top;
+              if (Math.abs(distance) < 1) return;
+              element.animate(
+                [
+                  { transform: `translateY(${distance}px)` },
+                  { transform: "translateY(0)" },
+                ],
+                { duration: 340, easing: "cubic-bezier(.22,.8,.22,1)" },
+              );
+            });
+        }),
+      );
     setRoute(null);
   };
+
+  const stopInstanceKey = (stop: Point, index: number) =>
+    `${stop.id}-${stops.slice(0, index).filter((item) => item.id === stop.id).length}`;
 
   const addWaypoint = async (event: FormEvent) => {
     event.preventDefault();
@@ -2130,7 +2166,8 @@ export default function UnifiedSearch({
                   <ol className="waypoint-list">
                     {stops.map((stop, index) => (
                       <li
-                        key={`${stop.id}-${index}`}
+                        key={stopInstanceKey(stop, index)}
+                        data-stop-key={stopInstanceKey(stop, index)}
                         data-stop-index={index}
                         draggable
                         className={reorderingStop === index ? "reordering" : ""}
