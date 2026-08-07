@@ -147,6 +147,28 @@ const distanceKm = (a: Point, lat: number, lon: number) => {
     Math.cos(rad(a.lat)) * Math.cos(rad(lat)) * Math.sin(dLon / 2) ** 2;
   return 6371 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
 };
+const clinicPriority = (name: string) => {
+  const value = name.toLowerCase();
+  if (/(화상|burn|응급|emergency|외상|trauma)/.test(value)) return 0;
+  if (
+    /(종합|general|medical center|내과|internal|정형|orthopedic|재활|rehabilitation)/.test(
+      value,
+    )
+  )
+    return 1;
+  if (/(성형|plastic|cosmetic|미용|피부|dermatology)/.test(value)) return 4;
+  return 2;
+};
+const clinicPriorityLabel = (name: string, ko: boolean) => {
+  const priority = clinicPriority(name);
+  if (priority === 0)
+    return ko ? "화상·응급 우선" : "BURN / EMERGENCY PRIORITY";
+  if (priority === 1)
+    return ko ? "일반·외상 진료 우선" : "GENERAL / TRAUMA CARE";
+  if (priority === 4)
+    return ko ? "미용 진료 · 후순위" : "COSMETIC CARE · LOWER PRIORITY";
+  return ko ? "가까운 동네 병·의원" : "ACCESSIBLE LOCAL CLINIC";
+};
 const TOURISM_KEYWORDS = [
   "관광",
   "관광지",
@@ -671,7 +693,12 @@ export default function UnifiedSearch({
                 (clinic: Clinic) =>
                   clinic.distance <= 5 && clinic.name !== major.name,
               )
-              .sort((a: Clinic, b: Clinic) => a.distance - b.distance)
+              .sort(
+                (a: Clinic, b: Clinic) =>
+                  clinicPriority(a.nameKo || a.name) -
+                    clinicPriority(b.nameKo || b.name) ||
+                  a.distance - b.distance,
+              )
               .slice(0, 3);
           }
         } catch {
@@ -1017,8 +1044,8 @@ export default function UnifiedSearch({
                   </h3>
                   <p>
                     {ko
-                      ? "관광지마다 가까운 대형병원 1곳과 동네 병·의원 최대 3곳을 거리순으로 표시합니다. 굿닥 평점은 실시간으로 복제하지 않고 각 병원의 굿닥 후기 검색 링크에서 확인할 수 있습니다."
-                      : "For each attraction, one nearby major hospital and up to three accessible local clinics are ordered by distance. Current Goodoc ratings are not copied; use each Goodoc review link to verify ratings."}
+                      ? "관광지마다 가까운 대형 응급병원 1곳과 동네 병·의원 최대 3곳을 표시합니다. 화상·응급·외상 진료를 우선하고 성형·미용 진료는 후순위로 배치합니다. 굿닥 평점은 각 병원의 후기 검색 링크에서 확인할 수 있습니다."
+                      : "For each attraction, one nearby major emergency hospital and up to three local clinics are shown. Burn, emergency and trauma care rank first; cosmetic and plastic surgery rank last. Verify current ratings through each Goodoc review link."}
                   </p>
                   {clinicLoading && (
                     <p className="food-loading">
@@ -1053,11 +1080,12 @@ export default function UnifiedSearch({
                               <span>
                                 {clinic.kind === "hospital"
                                   ? ko
-                                    ? "대형병원"
-                                    : "MAJOR HOSPITAL"
-                                  : ko
-                                    ? "동네 병·의원"
-                                    : "LOCAL CLINIC"}
+                                    ? "대형 응급병원"
+                                    : "MAJOR EMERGENCY HOSPITAL"
+                                  : clinicPriorityLabel(
+                                      clinic.nameKo || clinic.name,
+                                      ko,
+                                    )}
                               </span>
                               <strong>
                                 {ko
