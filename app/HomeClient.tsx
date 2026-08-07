@@ -107,7 +107,7 @@ export default function HomeClient() {
       <div className="home-content"><p className="eyebrow">{ko ? "대한민국 부산 · 해안 여행 도우미" : "BUSAN, KOREA · COASTAL TRAVEL COMPANION"}</p><h1>{ko ? <>부산의 바다를 찾고,<br /><em>안전하게 여행하세요.</em></> : <>Find your sea.<br /><em>Keep your way.</em></>}</h1><p className="hero-lead">{ko ? "한 번의 검색으로 효율적인 경로와 비용, 주변 음식점과 안전 정보를 확인하세요." : "One search gives you the most efficient route, travel cost, nearby care and local food recommendations."}</p>
         <form className="main-search" onSubmit={(event) => search(event)}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={ko ? "해운대, 광안리, 관광지를 검색하세요" : "Search Haeundae, Gwangalli, attractions…"} aria-label={ko ? "부산 관광지 검색" : "Search Busan coastal destination"} /><button>{ko ? "여행 검색 →" : "Plan trip →"}</button></form><p className="notice" aria-live="polite">{ko && notice === "Search a Busan coast or attraction to start." ? "부산의 바다나 관광지를 검색해 보세요." : notice}</p>
         {history.length > 0 && <div className="recent"><strong>{ko ? "최근 검색" : "Saved searches"}</strong>{history.map((item) => <button key={item} onClick={() => { setQuery(item); search(undefined, item); }}>{item}</button>)}</div>}
-      </div><div className="panorama-label"><span>{ko ? "부산 해안 파노라마" : "BUSAN COAST PANORAMA"}</span><b>{ko ? "5초마다 사진이 바뀝니다" : "Photos flow every 5 seconds"}</b><i /><i /><i /></div>
+      </div>
     </section>}
 
     {screen === "planner" && <RoutePlanner onClose={() => setScreen("home")} />}
