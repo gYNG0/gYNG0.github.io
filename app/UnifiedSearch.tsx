@@ -127,6 +127,126 @@ const BUSAN_ATTRACTIONS: Point[] = [
     riskKo:
       "절벽 산책로는 비바람에 노출됩니다. 출입 통제를 따르고 관광차량에서는 착석해 주세요.",
   },
+  {
+    id: "hwangnyeongsan",
+    name: "Hwangnyeongsan Observatory",
+    nameKo: "황령산 전망대",
+    lat: 35.157,
+    lon: 129.0828,
+    risk: "Mountain roads and viewing paths can be dark, steep or icy. Use lit paths and check weather before visiting.",
+    riskKo:
+      "산길과 전망대 보행로가 어둡거나 가파르고 겨울에는 결빙될 수 있습니다. 조명 있는 길을 이용하고 날씨를 확인하세요.",
+  },
+  {
+    id: "the-bay-101",
+    name: "The Bay 101",
+    nameKo: "더베이101",
+    lat: 35.1567,
+    lon: 129.152,
+    risk: "Waterfront decks can be slippery in rain and crowded at night. Keep away from unguarded edges.",
+    riskKo:
+      "비가 오면 수변 데크가 미끄럽고 야간에는 혼잡할 수 있습니다. 수변 가장자리에서 거리를 두세요.",
+  },
+  {
+    id: "cheongsapo",
+    name: "Cheongsapo Daritdol Observatory",
+    nameKo: "청사포 다릿돌전망대",
+    lat: 35.1594,
+    lon: 129.1917,
+    risk: "Strong coastal wind may affect the skywalk. Follow closures and secure hats and loose belongings.",
+    riskKo:
+      "해안 강풍으로 전망대 출입이 통제될 수 있습니다. 현장 통제를 따르고 모자와 소지품을 단단히 관리하세요.",
+  },
+  {
+    id: "blueline-park",
+    name: "Haeundae Blueline Park",
+    nameKo: "해운대 블루라인파크",
+    lat: 35.1604,
+    lon: 129.1701,
+    risk: "Stay behind platform lines and use marked crossings around the coastal railway.",
+    riskKo:
+      "해안열차 승강장 안전선 안쪽에서 대기하고 철길 주변에서는 지정된 통행로만 이용하세요.",
+  },
+  {
+    id: "oryukdo",
+    name: "Oryukdo Skywalk",
+    nameKo: "오륙도 스카이워크",
+    lat: 35.1005721,
+    lon: 129.1247309,
+    risk: "The exposed skywalk may close in high wind, rain or snow. Follow staff instructions.",
+    riskKo:
+      "강풍·비·눈이 올 때 스카이워크가 통제될 수 있습니다. 현장 직원의 안내를 따르세요.",
+  },
+  {
+    id: "igidae",
+    name: "Igidae Coastal Walk",
+    nameKo: "이기대 해안산책로",
+    lat: 35.126,
+    lon: 129.119,
+    risk: "Rocky coastal paths include slopes and stairs. Avoid them during severe weather and wear suitable shoes.",
+    riskKo:
+      "해안 산책로에 바위·경사·계단 구간이 있습니다. 악천후에는 피하고 미끄럼 방지 신발을 착용하세요.",
+  },
+  {
+    id: "dadaepo",
+    name: "Dadaepo Beach",
+    nameKo: "다대포 해수욕장",
+    lat: 35.0467,
+    lon: 128.9668,
+    risk: "Tides expose wide mudflats and channels. Check tide times and keep children close to designated paths.",
+    riskKo:
+      "조수에 따라 넓은 갯벌과 물길이 생깁니다. 물때를 확인하고 어린이는 지정된 길에서 보호자와 이동하세요.",
+  },
+  {
+    id: "haedong-yonggungsa",
+    name: "Haedong Yonggungsa Temple",
+    nameKo: "해동용궁사",
+    lat: 35.1884335,
+    lon: 129.2229764,
+    risk: "The temple has many stone steps and crowded narrow paths. Use handrails and move carefully in rain.",
+    riskKo:
+      "돌계단과 좁은 길이 많고 혼잡할 수 있습니다. 난간을 이용하고 비가 올 때 천천히 이동하세요.",
+  },
+  {
+    id: "busan-x-sky",
+    name: "BUSAN X the SKY",
+    nameKo: "부산 엑스 더 스카이",
+    lat: 35.1595,
+    lon: 129.1694,
+    risk: "Elevator queues and surrounding roads can be crowded. Follow building evacuation guidance.",
+    riskKo:
+      "엘리베이터 대기 공간과 주변 도로가 혼잡할 수 있습니다. 건물의 비상 대피 안내를 확인하세요.",
+  },
+  {
+    id: "dongbaekseom",
+    name: "Dongbaekseom Island",
+    nameKo: "동백섬",
+    lat: 35.1540639,
+    lon: 129.1520862,
+    risk: "Coastal boardwalks and stairs can be slippery after rain. Stay on marked paths.",
+    riskKo:
+      "비가 온 뒤 해안 데크와 계단이 미끄러울 수 있습니다. 지정된 산책로를 이용하세요.",
+  },
+  {
+    id: "jagalchi",
+    name: "Jagalchi Market",
+    nameKo: "자갈치시장",
+    lat: 35.0967,
+    lon: 129.0305,
+    risk: "Market floors can be wet and surrounding traffic is busy. Wear stable shoes and use crossings.",
+    riskKo:
+      "시장 바닥이 젖어 있을 수 있고 주변 차량 통행이 많습니다. 미끄럼에 주의하고 횡단보도를 이용하세요.",
+  },
+  {
+    id: "beomeosa",
+    name: "Beomeosa Temple",
+    nameKo: "범어사",
+    lat: 35.2839,
+    lon: 129.0684,
+    risk: "Mountain paths and stone stairs require care, especially after rain or snow.",
+    riskKo:
+      "산길과 돌계단은 비나 눈이 온 뒤 미끄러울 수 있습니다. 천천히 이동하고 등산로 통제를 확인하세요.",
+  },
 ];
 
 const aliases: Record<string, string[]> = {
@@ -138,6 +258,87 @@ const aliases: Record<string, string[]> = {
   huinnyeoul: ["huinnyeoul", "흰여울"],
   songdo: ["songdo", "송도"],
   taejongdae: ["taejongdae", "태종대"],
+  hwangnyeongsan: [
+    "hwangnyeongsan",
+    "hwangnyeong mountain",
+    "hwangnyeongsan observatory",
+    "황령산",
+    "황령산 전망대",
+    "ファンニョンサン",
+    "荒嶺山",
+    "荒岭山",
+  ],
+  "the-bay-101": [
+    "the bay 101",
+    "thebay101",
+    "더베이101",
+    "더 베이 101",
+    "ザ・ベイ101",
+    "海湾101",
+  ],
+  cheongsapo: [
+    "cheongsapo",
+    "daritdol",
+    "cheongsapo daritdol observatory",
+    "청사포",
+    "다릿돌전망대",
+    "青沙浦",
+    "チョンサポ",
+  ],
+  "blueline-park": [
+    "haeundae blueline park",
+    "blue line park",
+    "블루라인파크",
+    "해운대 블루라인파크",
+    "海雲台ブルーラインパーク",
+    "海云台蓝线公园",
+  ],
+  oryukdo: [
+    "oryukdo",
+    "oryukdo skywalk",
+    "오륙도",
+    "오륙도 스카이워크",
+    "五六島",
+    "五六岛",
+  ],
+  igidae: [
+    "igidae",
+    "igidae coastal walk",
+    "이기대",
+    "이기대 해안산책로",
+    "二妓台",
+  ],
+  dadaepo: ["dadaepo", "dadaepo beach", "다대포", "다대포 해수욕장", "多大浦"],
+  "haedong-yonggungsa": [
+    "haedong yonggungsa",
+    "yonggungsa temple",
+    "해동용궁사",
+    "海東龍宮寺",
+    "海东龙宫寺",
+  ],
+  "busan-x-sky": [
+    "busan x the sky",
+    "x the sky",
+    "부산 엑스 더 스카이",
+    "엑스더스카이",
+    "釜山X the SKY",
+  ],
+  dongbaekseom: [
+    "dongbaekseom",
+    "dongbaek island",
+    "동백섬",
+    "冬柏島",
+    "冬柏岛",
+  ],
+  jagalchi: [
+    "jagalchi",
+    "jagalchi market",
+    "자갈치",
+    "자갈치시장",
+    "チャガルチ市場",
+    "札嘎其市场",
+  ],
+  beomeosa: ["beomeosa", "beomeosa temple", "범어사", "梵魚寺", "梵鱼寺"],
 };
 const genericRisk =
   "No place-specific alert is registered in this guide. Check weather, official closures and on-site safety signs before visiting.";
@@ -292,32 +493,53 @@ const resolveRouteOrigin = async (lat: number, lon: number): Promise<Point> => {
 
 async function findBusanPlace(value: string): Promise<Point> {
   const clean = value.trim();
-  const normalized = clean.toLowerCase();
-  const known = BUSAN_ATTRACTIONS.find(
-    (place) =>
-      place.name.toLowerCase().includes(normalized) ||
-      aliases[place.id]?.some(
-        (alias) => normalized.includes(alias) || alias.includes(normalized),
-      ),
-  );
+  const normalizePlaceName = (name: string) =>
+    name
+      .toLowerCase()
+      .normalize("NFKC")
+      .replace(/(부산광역시|부산시|busan|관광지|명소|전망대|observatory)/g, "")
+      .replace(/[^\p{L}\p{N}]/gu, "");
+  const normalized = normalizePlaceName(clean);
+  const known = normalized
+    ? BUSAN_ATTRACTIONS.find(
+        (place) =>
+          normalizePlaceName(place.name).includes(normalized) ||
+          normalized.includes(normalizePlaceName(place.name)) ||
+          aliases[place.id]?.some(
+            (alias) =>
+              normalized.includes(normalizePlaceName(alias)) ||
+              normalizePlaceName(alias).includes(normalized),
+          ),
+      )
+    : undefined;
   if (known) return known;
-  const response = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&namedetails=1&accept-language=en&limit=1&countrycodes=kr&q=${encodeURIComponent(`${clean}, Busan`)}`,
-  );
-  if (!response.ok) throw new Error("search unavailable");
-  const results = await response.json();
-  if (!results[0]) throw new Error("not found");
-  const names = results[0].namedetails || {};
+  const queries = [`${clean}, Busan`, `${clean}, 부산광역시`, clean];
+  let result: any = null;
+  for (const query of queries) {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&namedetails=1&accept-language=en,ko,ja,zh&limit=5&countrycodes=kr&q=${encodeURIComponent(query)}`,
+    );
+    if (!response.ok) continue;
+    const results = await response.json();
+    result = results.find((item: { lat: string; lon: string }) => {
+      const lat = Number(item.lat);
+      const lon = Number(item.lon);
+      return lat >= 34.8 && lat <= 35.5 && lon >= 128.7 && lon <= 129.4;
+    });
+    if (result) break;
+  }
+  if (!result) throw new Error("not found");
+  const names = result.namedetails || {};
   return {
-    id: `search-${clean}-${results[0].lat}`,
+    id: `search-${clean}-${result.lat}`,
     name:
       names["name:en"] ||
       names.name ||
-      results[0].display_name.split(",")[0] ||
+      result.display_name.split(",")[0] ||
       clean,
     nameKo: names["name:ko"] || clean,
-    lat: Number(results[0].lat),
-    lon: Number(results[0].lon),
+    lat: Number(result.lat),
+    lon: Number(result.lon),
     risk: genericRisk,
   };
 }
