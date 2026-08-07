@@ -11,7 +11,7 @@ type Point = {
   risk: string;
   riskKo?: string;
 };
-type Tab = "route" | "food" | "safety";
+type Tab = "route" | "food" | "care" | "safety";
 type RouteData = {
   coordinates: [number, number][];
   distance: number;
@@ -22,6 +22,16 @@ type Restaurant = {
   name: string;
   nameKo?: string;
   cuisine?: string;
+  hours?: string;
+  distance: number;
+};
+type Clinic = {
+  id: string;
+  name: string;
+  nameKo?: string;
+  kind: "hospital" | "clinic";
+  specialty?: string;
+  phone?: string;
   hours?: string;
   distance: number;
 };
@@ -214,6 +224,11 @@ export default function UnifiedSearch({
   );
   const [foodLoading, setFoodLoading] = useState(false);
   const [foodError, setFoodError] = useState(false);
+  const [clinicResults, setClinicResults] = useState<Record<string, Clinic[]>>(
+    {},
+  );
+  const [clinicLoading, setClinicLoading] = useState(false);
+  const [clinicError, setClinicError] = useState(false);
   const mapNode = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
   const layer = useRef<any>(null);
@@ -576,6 +591,84 @@ export default function UnifiedSearch({
       cancelled = true;
     };
   }, [tab, stops, selected]);
+  useEffect(() => {
+    if (tab !== "care" || !infoPlaces.length) return;
+    let cancelled = false;
+    setClinicLoading(true);
+    setClinicError(false);
+    Promise.all(
+      infoPlaces.map(async (place) => {
+        const query = `[out:json][timeout:10];nwr["amenity"~"^(hospital|clinic|doctors)$"](around:5000,${place.lat},${place.lon});out center 35;`;
+        const endpoints = [
+          "https://overpass.kumi.systems/api/interpreter",
+          "https://overpass-api.de/api/interpreter",
+        ];
+        let data: any = null;
+        for (const endpoint of endpoints) {
+          try {
+            const response = await fetch(
+              `${endpoint}?data=${encodeURIComponent(query)}`,
+            );
+            if (response.ok) {
+              data = await response.json();
+              break;
+            }
+          } catch {
+            /* try mirror */
+          }
+        }
+        if (!data) return [place.id, [] as Clinic[]] as const;
+        const all: Clinic[] = data.elements
+          .map((item: any) => {
+            const tags = item.tags || {};
+            const lat = item.lat ?? item.center?.lat;
+            const lon = item.lon ?? item.center?.lon;
+            return {
+              id: `${item.type}-${item.id}`,
+              name:
+                tags["name:en"] ||
+                tags.name ||
+                tags["name:ko"] ||
+                "Local clinic",
+              nameKo: tags["name:ko"] || tags.name,
+              kind: tags.amenity === "hospital" ? "hospital" : "clinic",
+              specialty:
+                tags.healthcare ||
+                tags["healthcare:speciality"] ||
+                tags.speciality,
+              phone: tags.phone || tags["contact:phone"],
+              hours: tags.opening_hours,
+              distance: lat && lon ? distanceKm(place, lat, lon) : 99,
+            };
+          })
+          .filter((item: Clinic) => item.name !== "Local clinic")
+          .sort((a: Clinic, b: Clinic) => a.distance - b.distance);
+        const large = all
+          .filter((item) => item.kind === "hospital")
+          .slice(0, 1);
+        const local = all.filter((item) => item.kind === "clinic").slice(0, 3);
+        return [place.id, [...large, ...local]] as const;
+      }),
+    )
+      .then((entries) => {
+        if (!cancelled) {
+          setClinicResults(Object.fromEntries(entries));
+          setClinicError(entries.every(([, clinics]) => clinics.length === 0));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setClinicResults({});
+          setClinicError(true);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setClinicLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, stops, selected]);
   return (
     <section className="unified-search">
       <header>
@@ -657,6 +750,12 @@ export default function UnifiedSearch({
                 onClick={() => setTab("food")}
               >
                 {ko ? "주변 음식점" : "Find food"}
+              </button>
+              <button
+                className={tab === "care" ? "active" : ""}
+                onClick={() => setTab("care")}
+              >
+                {ko ? "주변 병원" : "Nearby care"}
               </button>
               <button
                 className={tab === "safety" ? "active" : ""}
@@ -861,6 +960,117 @@ export default function UnifiedSearch({
                       </section>
                     ))}
                   </div>
+                </article>
+              )}
+              {tab === "care" && (
+                <article className="all-place-info">
+                  <small>
+                    {ko ? "관광지별 의료기관" : "CARE NEAR ALL ADDED PLACES"}
+                  </small>
+                  <h3>
+                    {ko
+                      ? "대형병원과 가까운 동네 병원"
+                      : "Major hospitals and accessible local clinics"}
+                  </h3>
+                  <p>
+                    {ko
+                      ? "관광지마다 가까운 대형병원 1곳과 동네 병·의원 최대 3곳을 거리순으로 표시합니다. 굿닥 평점은 실시간으로 복제하지 않고 각 병원의 굿닥 후기 검색 링크에서 확인할 수 있습니다."
+                      : "For each attraction, one nearby major hospital and up to three accessible local clinics are ordered by distance. Current Goodoc ratings are not copied; use each Goodoc review link to verify ratings."}
+                  </p>
+                  {clinicLoading && (
+                    <p className="food-loading">
+                      {ko
+                        ? "주변 병원을 찾고 있습니다…"
+                        : "Finding nearby hospitals and clinics…"}
+                    </p>
+                  )}
+                  {clinicError && (
+                    <p className="food-error">
+                      {ko
+                        ? "공개 지도 병원 정보를 불러오지 못했습니다. 굿닥 검색 링크를 이용해 주세요."
+                        : "Public clinic data is temporarily unavailable. Use the Goodoc search links."}
+                    </p>
+                  )}
+                  <div className="care-place-list">
+                    {infoPlaces.map((place, index) => (
+                      <section key={`care-${place.id}-${index}`}>
+                        <h4>
+                          {index + 1}. {displayName(place)}
+                        </h4>
+                        <div className="clinic-grid">
+                          {(clinicResults[place.id] || []).map((clinic) => (
+                            <article
+                              key={clinic.id}
+                              className={
+                                clinic.kind === "hospital"
+                                  ? "major-clinic"
+                                  : "local-clinic"
+                              }
+                            >
+                              <span>
+                                {clinic.kind === "hospital"
+                                  ? ko
+                                    ? "대형병원"
+                                    : "MAJOR HOSPITAL"
+                                  : ko
+                                    ? "동네 병·의원"
+                                    : "LOCAL CLINIC"}
+                              </span>
+                              <strong>
+                                {ko
+                                  ? clinic.nameKo || clinic.name
+                                  : clinic.name}
+                              </strong>
+                              <p>
+                                {clinic.specialty
+                                  ? clinic.specialty.replaceAll(";", ", ")
+                                  : ko
+                                    ? "진료과 정보는 방문 전 확인하세요."
+                                    : "Check specialties before visiting."}
+                              </p>
+                              <small>
+                                {clinic.distance.toFixed(1)} km
+                                {clinic.hours ? ` · ${clinic.hours}` : ""}
+                                {clinic.phone ? ` · ${clinic.phone}` : ""}
+                              </small>
+                              <a
+                                href={`https://www.google.com/search?q=${encodeURIComponent(`site:goodoc.co.kr/hospitals ${clinic.name} 부산`)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                {ko
+                                  ? "굿닥 후기·평점 확인 →"
+                                  : "Check Goodoc reviews & rating →"}
+                              </a>
+                            </article>
+                          ))}
+                        </div>
+                        {!clinicLoading &&
+                          !(clinicResults[place.id] || []).length && (
+                            <p className="no-food-data">
+                              {ko
+                                ? "반경 5km 안에서 등록된 의료기관을 찾지 못했습니다."
+                                : "No mapped care facility found within 5 km."}
+                            </p>
+                          )}
+                        <a
+                          className="goodoc-area-link"
+                          href={`https://www.google.com/search?q=${encodeURIComponent(`site:goodoc.co.kr/hospitals ${displayName(place)} 병원 굿닥`)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {ko
+                            ? `${displayName(place)} 주변 굿닥 병원 더 찾기 →`
+                            : `Find more Goodoc clinics near ${displayName(place)} →`}
+                        </a>
+                      </section>
+                    ))}
+                  </div>
+                  <p className="medical-note">
+                    {ko
+                      ? "응급 상황에서는 평점보다 119 또는 가까운 응급실을 우선 이용하세요. 운영시간과 진료 가능 여부는 방문 전에 병원에 확인해야 합니다."
+                      : "In an emergency, call 119 or use the nearest emergency department rather than choosing by rating. Confirm opening hours and availability before visiting."}
+                  </p>
                 </article>
               )}
               {tab === "safety" && (
