@@ -1727,23 +1727,29 @@ export default function UnifiedSearch({
       return;
     }
     let cancelled = false;
-    fetch("/api/nearby", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        kind: "convenience",
-        places: infoPlaces.map((place) => ({ lat: place.lat, lon: place.lon })),
-      }),
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error("convenience unavailable");
-        return response.json();
-      })
-      .then((data) => {
+    Promise.allSettled(
+      infoPlaces.map((place) =>
+        fetch("/api/nearby", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kind: "convenience",
+            places: [{ lat: place.lat, lon: place.lon }],
+          }),
+        }).then((response) => {
+          if (!response.ok) throw new Error("convenience unavailable");
+          return response.json();
+        }),
+      ),
+    )
+      .then((responses) => {
         if (cancelled) return;
-        const stores = Array.isArray(data.places)
-          ? (data.places as Parking[])
-          : [];
+        const stores = responses.flatMap((response) =>
+          response.status === "fulfilled" &&
+          Array.isArray(response.value.places)
+            ? (response.value.places as Parking[])
+            : [],
+        );
         // Keep the closest stores around every attraction so markers remain
         // relevant and visible instead of being lost in a city-wide cluster.
         const nearest = infoPlaces.flatMap((place) =>
