@@ -36,9 +36,24 @@ export async function POST(request: NextRequest) {
     );
 
   let message = "";
+  let history: { role: "user" | "model"; parts: { text: string }[] }[] = [];
   try {
     const body = await request.json();
     message = typeof body?.message === "string" ? body.message.trim() : "";
+    if (Array.isArray(body?.messages)) {
+      history = body.messages
+        .filter(
+          (item: { role?: string; text?: string }) =>
+            (item?.role === "user" || item?.role === "assistant") &&
+            typeof item?.text === "string" &&
+            item.text.trim(),
+        )
+        .slice(-12)
+        .map((item: { role: "user" | "assistant"; text: string }) => ({
+          role: item.role === "assistant" ? "model" : "user",
+          parts: [{ text: item.text.slice(0, 1200) }],
+        }));
+    }
   } catch {
     return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 });
   }
@@ -55,11 +70,14 @@ export async function POST(request: NextRequest) {
       systemInstruction: {
         parts: [
           {
-            text: "You are BLUE LINE BUSAN, a concise bilingual Busan travel assistant. Answer in the language used by the visitor. Only help with Busan attractions, coastal travel, route planning, nearby food, hospitals, and safety. Never claim live traffic, live incidents, current ratings, opening hours, or medical diagnosis unless verified data was supplied. Clearly label estimates, recommend checking official maps or emergency services, and tell users to call 119 for immediate emergencies in Korea. Do not request personal information or precise location. Whenever you recommend one specific Busan attraction, end the response with exactly [[ADD_PLACE:official place name in English]]. Do not use this marker for restaurants, hospitals, or general questions.",
+            text: "You are BLUE LINE BUSAN, a concise Busan travel assistant supporting Korean, English, Japanese, and Simplified Chinese. Continue the conversation using its prior context and answer in the visitor's latest language. Handle concrete destinations and abstract requests such as night attractions, romantic places, atmospheric scenery, rainy-day spots, or family trips. For abstract recommendations, prioritize widely well-reviewed Google Maps candidates such as Gwangalli Beach, The Bay 101, Hwangnyeongsan Observatory, Gamcheon Culture Village, Cheongsapo Daritdol Observatory, Haeundae Blueline Park, Yongdusan Park and Huinnyeoul Culture Village, while clearly saying ratings change and should be checked on Google Maps. Never invent an exact current rating, live traffic, live incidents, opening hours, or medical diagnosis. Only help with Busan attractions, coastal travel, routes, nearby food, hospitals, and safety. Tell users to call 119 for immediate emergencies in Korea. Do not request personal information or precise location. Whenever you recommend one specific Busan attraction, end with exactly [[ADD_PLACE:official place name in English]]. Do not use this marker for restaurants, hospitals, or general questions.",
           },
         ],
       },
-      contents: [{ role: "user", parts: [{ text: message }] }],
+      contents:
+        history.length > 0
+          ? history
+          : [{ role: "user", parts: [{ text: message }] }],
       generationConfig: { maxOutputTokens: 1200 },
     });
     const callModel = (model: string) =>

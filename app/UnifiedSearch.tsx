@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import type { Language } from "./GeminiGuide";
 
 type Point = {
   id: string;
@@ -328,7 +329,7 @@ export default function UnifiedSearch({
 }: {
   initialQuery: string;
   onClose: () => void;
-  language: "ko" | "en";
+  language: Language;
 }) {
   const ko = language === "ko";
   const displayName = (point: Point) =>

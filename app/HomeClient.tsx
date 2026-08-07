@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import RoutePlanner from "./RoutePlanner";
 import UnifiedSearch from "./UnifiedSearch";
-import GeminiGuide from "./GeminiGuide";
+import GeminiGuide, { type Language } from "./GeminiGuide";
 
 type PlaceKey = "haeundae" | "gwangalli" | "songdo" | "taejongdae";
 type Screen =
@@ -186,7 +186,7 @@ const attractions = [
 ];
 
 export default function HomeClient() {
-  const [language, setLanguage] = useState<"ko" | "en">("ko");
+  const [language, setLanguage] = useState<Language>("ko");
   const [screen, setScreen] = useState<Screen>("home");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<PlaceKey>("haeundae");
@@ -204,6 +204,7 @@ export default function HomeClient() {
   const [locationHelpOpen, setLocationHelpOpen] = useState(false);
   const [locationPromptOpen, setLocationPromptOpen] = useState(true);
   const [searchedQuery, setSearchedQuery] = useState("");
+  const [aiQuestion, setAiQuestion] = useState("");
   const place = useMemo(
     () => places.find((item) => item.id === selected) ?? places[0],
     [selected],
@@ -214,18 +215,65 @@ export default function HomeClient() {
       setHistory(
         JSON.parse(localStorage.getItem("blueline-search-history") || "[]"),
       );
+      const savedLanguage = localStorage.getItem("blueline-language");
       setLanguage(
-        localStorage.getItem("blueline-language") === "en" ? "en" : "ko",
+        savedLanguage === "en" ||
+          savedLanguage === "ja" ||
+          savedLanguage === "zh"
+          ? savedLanguage
+          : "ko",
       );
     } catch {
       setHistory([]);
     }
   }, []);
-  const changeLanguage = (next: "ko" | "en") => {
+  const changeLanguage = (next: Language) => {
     setLanguage(next);
     localStorage.setItem("blueline-language", next);
   };
   const ko = language === "ko";
+  const homeCopy = {
+    ko: {
+      guide: "부산 해안 여행 가이드",
+      eyebrow: "대한민국 부산 · 해안 여행 도우미",
+      line1: "부산의 바다를 찾고,",
+      line2: "안전하게 여행하세요.",
+      lead: "한 번의 검색으로 효율적인 경로와 비용, 주변 음식점과 안전 정보를 확인하세요.",
+      placeholder: "해운대, 야간 명소, 분위기 좋은 곳을 검색하세요",
+      button: "여행 검색 →",
+      recent: "최근 검색",
+    },
+    en: {
+      guide: "SEARCH-LED COAST GUIDE",
+      eyebrow: "BUSAN, KOREA · COASTAL TRAVEL COMPANION",
+      line1: "Find your sea.",
+      line2: "Keep your way.",
+      lead: "One search gives you efficient routes, costs, nearby care, food and tailored AI recommendations.",
+      placeholder: "Search Haeundae, night views, atmospheric places…",
+      button: "Plan trip →",
+      recent: "Saved searches",
+    },
+    ja: {
+      guide: "釜山海岸旅行ガイド",
+      eyebrow: "韓国・釜山 · 海岸旅行アシスタント",
+      line1: "釜山の海を見つけ、",
+      line2: "安全に旅しましょう。",
+      lead: "一度の検索で効率的なルート、費用、周辺グルメ、安全情報、AIのおすすめを確認できます。",
+      placeholder: "海雲台、夜景、雰囲気の良い場所を検索",
+      button: "旅行を検索 →",
+      recent: "最近の検索",
+    },
+    zh: {
+      guide: "釜山海岸旅行指南",
+      eyebrow: "韩国釜山 · 海岸旅行助手",
+      line1: "寻找釜山的海，",
+      line2: "安心开启旅程。",
+      lead: "一次搜索即可查看高效路线、费用、附近美食、安全信息和AI推荐。",
+      placeholder: "搜索海云台、夜景或氛围好的地点",
+      button: "搜索行程 →",
+      recent: "最近搜索",
+    },
+  }[language];
   const saveHistory = (value: string) => {
     const next = [
       value,
@@ -242,6 +290,23 @@ export default function HomeClient() {
       return;
     }
     saveHistory(clean);
+    const abstractTravelQuestion =
+      /(야간|야경|분위기|데이트|로맨틱|추천|night|nightlife|atmospher|romantic|date spot|recommend|夜景|雰囲気|おすすめ|夜间|氛围|推荐)/i.test(
+        clean,
+      );
+    if (abstractTravelQuestion) {
+      setAiQuestion(clean);
+      setNotice(
+        language === "ko"
+          ? "AI 관광 도우미가 장소를 찾고 있습니다."
+          : language === "ja"
+            ? "AI観光ガイドがおすすめを探しています。"
+            : language === "zh"
+              ? "AI旅游助手正在查找推荐地点。"
+              : "The AI travel guide is finding a recommendation.",
+      );
+      return;
+    }
     setSearchedQuery(clean);
     setNotice(`Searching every feature for “${clean}”.`);
     setScreen("search");
@@ -306,25 +371,36 @@ export default function HomeClient() {
         </button>
         <div className="topbar-right">
           <span className="guide-label">
-            <span className="online-dot" />{" "}
-            {ko ? "부산 해안 여행 가이드" : "SEARCH-LED COAST GUIDE"}
+            <span className="online-dot" /> {homeCopy.guide}
           </span>
           <div
             className="global-language"
             role="group"
-            aria-label={ko ? "언어 선택" : "Choose language"}
+            aria-label="Language / 언어 / 言語 / 语言"
           >
             <button
-              className={ko ? "active" : ""}
+              className={language === "ko" ? "active" : ""}
               onClick={() => changeLanguage("ko")}
             >
               한국어
             </button>
             <button
-              className={!ko ? "active" : ""}
+              className={language === "en" ? "active" : ""}
               onClick={() => changeLanguage("en")}
             >
               EN
+            </button>
+            <button
+              className={language === "ja" ? "active" : ""}
+              onClick={() => changeLanguage("ja")}
+            >
+              日本語
+            </button>
+            <button
+              className={language === "zh" ? "active" : ""}
+              onClick={() => changeLanguage("zh")}
+            >
+              中文
             </button>
           </div>
         </div>
@@ -390,45 +466,23 @@ export default function HomeClient() {
             <div className="photo-overlay" />
           </div>
           <div className="home-content">
-            <p className="eyebrow">
-              {ko
-                ? "대한민국 부산 · 해안 여행 도우미"
-                : "BUSAN, KOREA · COASTAL TRAVEL COMPANION"}
-            </p>
+            <p className="eyebrow">{homeCopy.eyebrow}</p>
             <h1>
-              {ko ? (
-                <>
-                  부산의 바다를 찾고,
-                  <br />
-                  <em>안전하게 여행하세요.</em>
-                </>
-              ) : (
-                <>
-                  Find your sea.
-                  <br />
-                  <em>Keep your way.</em>
-                </>
-              )}
+              {homeCopy.line1}
+              <br />
+              <em>{homeCopy.line2}</em>
             </h1>
-            <p className="hero-lead">
-              {ko
-                ? "한 번의 검색으로 효율적인 경로와 비용, 주변 음식점과 안전 정보를 확인하세요."
-                : "One search gives you the most efficient route, travel cost, nearby care and local food recommendations."}
-            </p>
+            <p className="hero-lead">{homeCopy.lead}</p>
             <form className="main-search" onSubmit={(event) => search(event)}>
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder={
-                  ko
-                    ? "해운대, 광안리, 관광지를 검색하세요"
-                    : "Search Haeundae, Gwangalli, attractions…"
-                }
+                placeholder={homeCopy.placeholder}
                 aria-label={
                   ko ? "부산 관광지 검색" : "Search Busan coastal destination"
                 }
               />
-              <button>{ko ? "여행 검색 →" : "Plan trip →"}</button>
+              <button>{homeCopy.button}</button>
             </form>
             <p className="notice" aria-live="polite">
               {ko && notice === "Search a Busan coast or attraction to start."
@@ -437,7 +491,7 @@ export default function HomeClient() {
             </p>
             {history.length > 0 && (
               <div className="recent">
-                <strong>{ko ? "최근 검색" : "Saved searches"}</strong>
+                <strong>{homeCopy.recent}</strong>
                 {history.map((item) => (
                   <button
                     key={item}
@@ -726,6 +780,8 @@ export default function HomeClient() {
       )}
       <GeminiGuide
         language={language}
+        initialQuestion={aiQuestion}
+        onQuestionConsumed={() => setAiQuestion("")}
         onRecommend={(recommendedPlace) => {
           setQuery(recommendedPlace);
           setSearchedQuery(recommendedPlace);
