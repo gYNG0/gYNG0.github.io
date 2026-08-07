@@ -1538,11 +1538,11 @@ export default function UnifiedSearch({
     );
     convenienceResults.forEach((store) =>
       window.L.circleMarker([store.lat, store.lon], {
-        radius: 6,
+        radius: 8,
         color: "#ffffff",
-        fillColor: "#3478d4",
+        fillColor: "#1267d6",
         fillOpacity: 1,
-        weight: 2,
+        weight: 3,
       })
         .bindTooltip(
           `${ui.convenience} · ${language === "ja" ? store.nameJa || store.name : language === "zh" ? store.nameZh || store.name : store.name}`,
@@ -1780,29 +1780,27 @@ export default function UnifiedSearch({
       return;
     }
     let cancelled = false;
-    Promise.allSettled(
-      infoPlaces.map((place) =>
-        fetch("/api/nearby", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            kind: "convenience",
-            places: [{ lat: place.lat, lon: place.lon }],
-          }),
-        }).then((response) => {
-          if (!response.ok) throw new Error("convenience unavailable");
-          return response.json();
-        }),
-      ),
-    )
-      .then((responses) => {
+    fetch("/api/nearby", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind: "convenience",
+        places: infoPlaces.map((place) => ({
+          lat: place.lat,
+          lon: place.lon,
+        })),
+      }),
+      cache: "no-store",
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("convenience unavailable");
+        return response.json();
+      })
+      .then((data) => {
         if (cancelled) return;
-        const stores = responses.flatMap((response) =>
-          response.status === "fulfilled" &&
-          Array.isArray(response.value.places)
-            ? (response.value.places as Parking[])
-            : [],
-        );
+        const stores = Array.isArray(data.places)
+          ? (data.places as Parking[])
+          : [];
         // Keep the closest stores around every attraction so markers remain
         // relevant and visible instead of being lost in a city-wide cluster.
         const nearest = infoPlaces.flatMap((place) =>

@@ -39,17 +39,24 @@ export async function POST(request: NextRequest) {
       ? ['["amenity"~"restaurant|cafe|fast_food"]']
       : kind === "care"
         ? ['["amenity"~"hospital|clinic|doctors"]']
-        : ['["shop"="convenience"]'];
+        : [
+            '["shop"="convenience"]',
+            '["name"~"^(GS ?25|CU($|[ _-])|7-?Eleven|7 ?eleven|세븐일레븐|emart ?24|이마트 ?24)",i]',
+          ];
   // Convenience stores are dense in Busan. A smaller per-attraction radius
   // keeps the public Overpass request fast and dependable.
   const radius = kind === "convenience" ? 1200 : 2500;
   const clauses = places
     .flatMap((place) =>
-      filters.flatMap((filter) => [
-        `node(around:${radius},${place.lat},${place.lon})${filter}`,
-        `way(around:${radius},${place.lat},${place.lon})${filter}`,
-        `relation(around:${radius},${place.lat},${place.lon})${filter}`,
-      ]),
+      filters.flatMap((filter) =>
+        kind === "convenience"
+          ? [`node(around:${radius},${place.lat},${place.lon})${filter}`]
+          : [
+              `node(around:${radius},${place.lat},${place.lon})${filter}`,
+              `way(around:${radius},${place.lat},${place.lon})${filter}`,
+              `relation(around:${radius},${place.lat},${place.lon})${filter}`,
+            ],
+      ),
     )
     .join(";");
   const query = `[out:json][timeout:24];(${clauses};);out center tags;`;
@@ -79,6 +86,8 @@ export async function POST(request: NextRequest) {
             item.tags?.["name:en"] ||
             item.tags?.name ||
             item.tags?.["name:ko"] ||
+            item.tags?.brand ||
+            item.tags?.operator ||
             "",
           nameKo: item.tags?.["name:ko"] || item.tags?.name,
           nameJa: item.tags?.["name:ja"],
