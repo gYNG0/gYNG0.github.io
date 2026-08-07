@@ -141,10 +141,15 @@ export async function POST(request: NextRequest) {
       .replace(/\s*\[\[ADD_PLACES:.+?\]\]\s*/gi, "")
       .replace(/\s*\[\[ADD_PLACE:.+?\]\]\s*/gi, "")
       .trim();
-    const broadAttractionRequest =
-      /^(명소|관광 ?명소|관광지|attractions?|landmarks?|sightseeing|名所|観光地|名胜|景点)[.!?\s]*$/i.test(
-        message,
-      );
+    const normalizedMessage = message.trim().toLowerCase();
+    const broadAttractionTerms = new Set([
+      "\uBA85\uC18C", "\uAD00\uAD11\uBA85\uC18C", "\uAD00\uAD11\uC9C0",
+      "attraction", "attractions", "landmark", "landmarks", "sightseeing",
+      "\u540D\u6240", "\u89B3\u5149\u5730", "\u540D\u80DC", "\u666F\u70B9",
+    ]);
+    const broadAttractionRequest = broadAttractionTerms.has(
+      normalizedMessage.replace(/[.!?]+$/g, "").trim(),
+    );
     if (broadAttractionRequest) {
       recommendedPlaces = [
         "Gwangalli Beach",
