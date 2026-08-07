@@ -469,6 +469,30 @@ const QUICK_FOOD: Record<string, Restaurant[]> = {
 };
 const genericRisk =
   "No place-specific alert is registered in this guide. Check weather, official closures and on-site safety signs before visiting.";
+const BUSAN_LOCAL_PLACES: Point[] = [
+  { id: "seomyeon", name: "Seomyeon", nameKo: "서면", nameJa: "西面", nameZh: "西面", lat: 35.1578, lon: 129.0592, risk: genericRisk },
+  { id: "jeonpo", name: "Jeonpo", nameKo: "전포", nameJa: "田浦", nameZh: "田浦", lat: 35.1531, lon: 129.0651, risk: genericRisk },
+  { id: "nampo", name: "Nampo-dong", nameKo: "남포동", nameJa: "南浦洞", nameZh: "南浦洞", lat: 35.0984, lon: 129.0317, risk: genericRisk },
+  { id: "centum-city", name: "Centum City", nameKo: "센텀시티", nameJa: "センタムシティ", nameZh: "新世界Centum City", lat: 35.169, lon: 129.1302, risk: genericRisk },
+  { id: "dongnae", name: "Dongnae", nameKo: "동래", nameJa: "東莱", nameZh: "东莱", lat: 35.2056, lon: 129.0785, risk: genericRisk },
+  { id: "yeonsan", name: "Yeonsan", nameKo: "연산동", nameJa: "蓮山洞", nameZh: "莲山洞", lat: 35.186, lon: 129.0815, risk: genericRisk },
+  { id: "sasang", name: "Sasang", nameKo: "사상", nameJa: "沙上", nameZh: "沙上", lat: 35.162, lon: 128.9848, risk: genericRisk },
+  { id: "gijang", name: "Gijang", nameKo: "기장", nameJa: "機張", nameZh: "机张", lat: 35.2446, lon: 129.2222, risk: genericRisk },
+  { id: "songjeong", name: "Songjeong", nameKo: "송정", nameJa: "松亭", nameZh: "松亭", lat: 35.1785, lon: 129.1997, risk: genericRisk },
+  { id: "bujeon", name: "Bujeon", nameKo: "부전", nameJa: "釜田", nameZh: "釜田", lat: 35.163, lon: 129.0612, risk: genericRisk },
+];
+const LOCAL_PLACE_ALIASES: Record<string, string[]> = {
+  seomyeon: ["서면", "서면역", "seomyeon", "seomyeon station", "西面"],
+  jeonpo: ["전포", "전포동", "전포역", "jeonpo", "jeonpo station", "田浦"],
+  nampo: ["남포", "남포동", "남포역", "nampo", "nampo-dong", "南浦"],
+  "centum-city": ["센텀", "센텀시티", "센텀시티역", "centum", "centum city", "センタムシティ"],
+  dongnae: ["동래", "동래역", "dongnae", "dongnae station", "東莱", "东莱"],
+  yeonsan: ["연산", "연산동", "연산역", "yeonsan", "yeonsan station", "蓮山", "莲山"],
+  sasang: ["사상", "사상역", "사상터미널", "sasang", "sasang station", "沙上"],
+  gijang: ["기장", "기장역", "gijang", "gijang station", "機張", "机张"],
+  songjeong: ["송정", "송정역", "songjeong", "songjeong station", "松亭"],
+  bujeon: ["부전", "부전역", "bujeon", "bujeon station", "釜田"],
+};
 const minutes = (meters: number) =>
   Math.max(1, Math.round((meters / 1000) * 4));
 const hasKnownClosureDuringTrip = (
@@ -914,15 +938,23 @@ async function findBusanPlace(value: string): Promise<Point> {
       .replace(/(부산광역시|부산시|busan|관광지|명소|전망대|observatory)/g, "")
       .replace(/[^\p{L}\p{N}]/gu, "");
   const normalized = normalizePlaceName(clean);
+  const knownPlaces = [...BUSAN_ATTRACTIONS, ...BUSAN_LOCAL_PLACES];
   const known = normalized
-    ? BUSAN_ATTRACTIONS.find(
-        (place) =>
-          normalizePlaceName(place.name).includes(normalized) ||
-          normalized.includes(normalizePlaceName(place.name)) ||
-          aliases[place.id]?.some(
-            (alias) =>
-              normalized.includes(normalizePlaceName(alias)) ||
-              normalizePlaceName(alias).includes(normalized),
+    ? knownPlaces.find((place) =>
+        [
+          place.name,
+          place.nameKo,
+          place.nameJa,
+          place.nameZh,
+          ...(aliases[place.id] || []),
+          ...(LOCAL_PLACE_ALIASES[place.id] || []),
+        ]
+          .filter((name): name is string => Boolean(name))
+          .map(normalizePlaceName)
+          .some(
+            (name) =>
+              name.length > 0 &&
+              (name.includes(normalized) || normalized.includes(name)),
           ),
       )
     : undefined;
