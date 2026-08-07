@@ -1142,40 +1142,25 @@ export default function UnifiedSearch({
       return;
     }
     let cancelled = false;
-    const clauses = infoPlaces
-      .flatMap((place) => [
-        `node(around:1500,${place.lat},${place.lon})["amenity"="parking"]`,
-        `way(around:1500,${place.lat},${place.lon})["amenity"="parking"]`,
-        `relation(around:1500,${place.lat},${place.lon})["amenity"="parking"]`,
-      ])
-      .join(";");
-    const overpassQuery = `[out:json][timeout:20];(${clauses};);out center tags;`;
-    fetch(
-      `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`,
-    )
+    fetch("/api/parking", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        places: infoPlaces.map((place) => ({
+          lat: place.lat,
+          lon: place.lon,
+        })),
+      }),
+    })
       .then((response) => {
         if (!response.ok) throw new Error("parking unavailable");
         return response.json();
       })
       .then((data) => {
         if (cancelled) return;
-        const parking = (data.elements || [])
-          .map((item: any) => ({
-            id: `parking-${item.type}-${item.id}`,
-            name:
-              item.tags?.["name:ko"] ||
-              item.tags?.name ||
-              (ko ? "주차장" : "Parking"),
-            lat: Number(item.lat ?? item.center?.lat),
-            lon: Number(item.lon ?? item.center?.lon),
-          }))
-          .filter(
-            (item: Parking, index: number, items: Parking[]) =>
-              Number.isFinite(item.lat) &&
-              Number.isFinite(item.lon) &&
-              items.findIndex((other) => other.id === item.id) === index,
-          )
-          .slice(0, 60);
+        const parking = Array.isArray(data.parking)
+          ? (data.parking as Parking[])
+          : [];
         setParkingResults(parking);
       })
       .catch(() => {
