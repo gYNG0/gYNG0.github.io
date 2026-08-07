@@ -724,7 +724,15 @@ export default function HomeClient() {
           )}
         </section>
       )}
-      <GeminiGuide language={language} />
+      <GeminiGuide
+        language={language}
+        onRecommend={(recommendedPlace) => {
+          setQuery(recommendedPlace);
+          setSearchedQuery(recommendedPlace);
+          saveHistory(recommendedPlace);
+          setScreen("search");
+        }}
+      />
     </main>
   );
 }

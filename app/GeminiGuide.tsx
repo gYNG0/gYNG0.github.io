@@ -4,7 +4,13 @@ import { FormEvent, useState } from "react";
 
 type Message = { role: "user" | "assistant"; text: string };
 
-export default function GeminiGuide({ language }: { language: "ko" | "en" }) {
+export default function GeminiGuide({
+  language,
+  onRecommend,
+}: {
+  language: "ko" | "en";
+  onRecommend: (place: string) => void;
+}) {
   const ko = language === "ko";
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -37,6 +43,8 @@ export default function GeminiGuide({ language }: { language: "ko" | "en" }) {
               : "The answer could not be loaded."),
         },
       ]);
+      if (typeof data.recommendedPlace === "string" && data.recommendedPlace)
+        onRecommend(data.recommendedPlace);
     } catch {
       setMessages((items) => [
         ...items,
@@ -120,7 +128,10 @@ export default function GeminiGuide({ language }: { language: "ko" | "en" }) {
       {!open && (
         <button className="ai-guide-launch" onClick={() => setOpen(true)}>
           <span>✦</span>
-          {ko ? "AI 관광 도우미" : "AI travel guide"}
+          <b>{ko ? "AI 관광 도우미" : "AI travel guide"}</b>
+          <small>
+            {ko ? "추천 장소 자동 추가" : "Auto-add recommendations"}
+          </small>
         </button>
       )}
     </aside>

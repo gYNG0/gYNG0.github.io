@@ -652,12 +652,7 @@ export default function UnifiedSearch({
 
   const useLocation = () => {
     if (!navigator.geolocation) {
-      setMessage(
-        say(
-          "Location is unavailable here. Open this HTTPS page in Chrome, Edge or Safari and allow location access.",
-          "현재 브라우저에서 위치를 사용할 수 없습니다. Chrome, Edge 또는 Safari에서 이 HTTPS 페이지를 열고 위치 권한을 허용하세요.",
-        ),
-      );
+      calculateRoute(BUSAN_STATION_ORIGIN);
       return;
     }
     setLoading(true);
@@ -688,8 +683,10 @@ export default function UnifiedSearch({
                   "Location request timed out. Move near a window or turn on GPS, then try again.",
                   "위치 요청 시간이 초과되었습니다. GPS를 켜거나 창가로 이동한 후 다시 시도하세요.",
                 );
-        setMessage(detail);
-        setLoading(false);
+        setMessage(
+          `${detail} ${say("Using Busan Station as the starting point instead.", "대신 부산역을 출발지로 사용합니다.")}`,
+        );
+        calculateRoute(BUSAN_STATION_ORIGIN);
       },
       { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 },
     );
@@ -705,7 +702,7 @@ export default function UnifiedSearch({
     Promise.all(
       infoPlaces.map(async (place) => {
         const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&namedetails=1&accept-language=en&limit=8&q=${encodeURIComponent(`restaurant near ${place.name}, Busan`)}`,
+          `https://nominatim.openstreetmap.org/search?format=json&namedetails=1&extratags=1&accept-language=en&limit=8&q=${encodeURIComponent(`restaurant near ${place.name}, Busan`)}`,
         );
         if (!response.ok) return [place.id, [] as Restaurant[]] as const;
         const data = await response.json();
@@ -721,11 +718,12 @@ export default function UnifiedSearch({
                 "Local restaurant",
               nameKo: names["name:ko"] || names.name,
               cuisine:
-                item.type === "cafe"
+                item.extratags?.cuisine ||
+                (item.type === "cafe"
                   ? "cafe"
                   : item.type === "fast_food"
                     ? "fast food"
-                    : "restaurant",
+                    : "local food"),
               distance: distanceKm(place, Number(item.lat), Number(item.lon)),
               lat: Number(item.lat),
               lon: Number(item.lon),

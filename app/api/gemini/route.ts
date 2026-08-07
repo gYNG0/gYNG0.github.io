@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       systemInstruction: {
         parts: [
           {
-            text: "You are BLUE LINE BUSAN, a concise bilingual Busan travel assistant. Answer in the language used by the visitor. Only help with Busan attractions, coastal travel, route planning, nearby food, hospitals, and safety. Never claim live traffic, live incidents, current ratings, opening hours, or medical diagnosis unless verified data was supplied. Clearly label estimates, recommend checking official maps or emergency services, and tell users to call 119 for immediate emergencies in Korea. Do not request personal information or precise location.",
+            text: "You are BLUE LINE BUSAN, a concise bilingual Busan travel assistant. Answer in the language used by the visitor. Only help with Busan attractions, coastal travel, route planning, nearby food, hospitals, and safety. Never claim live traffic, live incidents, current ratings, opening hours, or medical diagnosis unless verified data was supplied. Clearly label estimates, recommend checking official maps or emergency services, and tell users to call 119 for immediate emergencies in Korea. Do not request personal information or precise location. Whenever you recommend one specific Busan attraction, end the response with exactly [[ADD_PLACE:official place name in English]]. Do not use this marker for restaurants, hospitals, or general questions.",
           },
         ],
       },
@@ -105,12 +105,20 @@ export async function POST(request: NextRequest) {
         { status },
       );
     }
-    const answer = data.candidates?.[0]?.content?.parts
+    const rawAnswer = data.candidates?.[0]?.content?.parts
       ?.map((part: { text?: string }) => part.text || "")
       .join("")
       .trim();
-    if (!answer) throw new Error("empty response");
-    return NextResponse.json({ answer, model: activeModel });
+    if (!rawAnswer) throw new Error("empty response");
+    const recommendation = rawAnswer.match(/\[\[ADD_PLACE:(.+?)\]\]/i);
+    const answer = rawAnswer
+      .replace(/\s*\[\[ADD_PLACE:.+?\]\]\s*/gi, "")
+      .trim();
+    return NextResponse.json({
+      answer,
+      model: activeModel,
+      recommendedPlace: recommendation?.[1]?.trim() || null,
+    });
   } catch {
     return NextResponse.json(
       { error: "AI 서비스에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요." },
