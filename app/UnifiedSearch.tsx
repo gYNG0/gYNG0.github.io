@@ -1282,6 +1282,59 @@ export default function UnifiedSearch({
       setLoading(false);
       return;
     }
+    const requestedPlaces = clean
+      .split(/[,;\n]+/)
+      .map((place) => place.trim())
+      .filter(Boolean)
+      .filter(
+        (place, index, places) =>
+          places.findIndex(
+            (other) => other.toLowerCase() === place.toLowerCase(),
+          ) === index,
+      );
+    if (requestedPlaces.length > 1) {
+      const results = await Promise.allSettled(
+        requestedPlaces.map((place) => findBusanPlace(place)),
+      );
+      const found = results
+        .filter(
+          (result): result is PromiseFulfilledResult<Point> =>
+            result.status === "fulfilled",
+        )
+        .map((result) => result.value)
+        .filter(
+          (place, index, places) =>
+            places.findIndex((other) => other.id === place.id) === index,
+        );
+      if (found.length) {
+        setPoints(found);
+        setSelected(found[0]);
+        setStops(found);
+        setQuery(found.map((place) => place.name).join(", "));
+        setMessage(
+          say(
+            `${found.length} attractions are shown on the map and added as route stops.`,
+            `${found.length}개의 관광지를 지도에 표시하고 경유지로 추가했습니다.`,
+            `${found.length}か所の観光地を地図に表示し、経由地に追加しました。`,
+            `已在地图上显示 ${found.length} 个景点并添加为途经点。`,
+          ),
+        );
+      } else {
+        setPoints([]);
+        setSelected(null);
+        setStops([]);
+        setMessage(
+          say(
+            "The places could not be found. Check each Busan place name and try again.",
+            "장소를 찾지 못했습니다. 부산 지명을 각각 확인한 뒤 다시 검색해 주세요.",
+            "場所が見つかりませんでした。各釜山の地名を確認して再検索してください。",
+            "未找到地点。请检查每个釜山地名后重试。",
+          ),
+        );
+      }
+      setLoading(false);
+      return;
+    }
     try {
       const found = await findBusanPlace(clean);
       setPoints([found]);

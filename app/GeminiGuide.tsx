@@ -177,6 +177,7 @@ export default function GeminiGuide({
             headers: { "Content-Type": "application/json" },
             body: requestBody,
             signal: controller.signal,
+            cache: "no-store",
           });
           if (response.ok || response.status < 500) break;
         } catch {
@@ -218,7 +219,11 @@ export default function GeminiGuide({
 
   useEffect(() => {
     const question = initialQuestion?.trim();
-    if (!question || question === lastInitialQuestion.current) return;
+    if (!question) {
+      lastInitialQuestion.current = "";
+      return;
+    }
+    if (question === lastInitialQuestion.current) return;
     lastInitialQuestion.current = question;
     onQuestionConsumed?.();
     void submitQuestion(question, true);
