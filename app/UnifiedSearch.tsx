@@ -376,6 +376,97 @@ const PLACE_TRANSLATIONS: Record<string, { ja: string; zh: string }> = {
   jagalchi: { ja: "チャガルチ市場", zh: "札嘎其市场" },
   beomeosa: { ja: "梵魚寺", zh: "梵鱼寺" },
 };
+const QUICK_FOOD: Record<string, Restaurant[]> = {
+  haeundae: [
+    {
+      id: "quick-haemok",
+      name: "Haemok Haeundae",
+      nameKo: "해목 해운대점",
+      nameJa: "ヘモク海雲台店",
+      nameZh: "海木海云台店",
+      cuisine: "japanese;eel",
+      distance: 0,
+      lat: 35.1609,
+      lon: 129.1624,
+    },
+    {
+      id: "quick-miryang",
+      name: "Miryang Sundae Dwaeji Gukbap",
+      nameKo: "밀양순대돼지국밥",
+      cuisine: "korean;gukbap",
+      distance: 0,
+      lat: 35.1635,
+      lon: 129.1632,
+    },
+    {
+      id: "quick-ops",
+      name: "OPS Haeundae",
+      nameKo: "옵스 해운대",
+      cuisine: "bakery;cafe",
+      distance: 0,
+      lat: 35.1599,
+      lon: 129.1604,
+    },
+  ],
+  cheongsapo: [
+    {
+      id: "quick-sumin",
+      name: "Suminine",
+      nameKo: "수민이네",
+      cuisine: "korean;seafood",
+      distance: 0,
+      lat: 35.1607,
+      lon: 129.1912,
+    },
+    {
+      id: "quick-cheongsapo-end",
+      name: "Cheongsapo End House",
+      nameKo: "청사포끝집",
+      cuisine: "korean;seafood",
+      distance: 0,
+      lat: 35.1608,
+      lon: 129.1922,
+    },
+    {
+      id: "quick-diarte",
+      name: "Diarte Coffee",
+      nameKo: "디아트커피",
+      cuisine: "cafe;dessert",
+      distance: 0,
+      lat: 35.1602,
+      lon: 129.191,
+    },
+  ],
+  gwangalli: [
+    {
+      id: "quick-eonyang",
+      name: "Eonyang Bulgogi Busan",
+      nameKo: "언양불고기 부산집",
+      cuisine: "korean;barbecue",
+      distance: 0,
+      lat: 35.1542,
+      lon: 129.1197,
+    },
+    {
+      id: "quick-millak",
+      name: "Millak Raw Fish Town",
+      nameKo: "민락회타운",
+      cuisine: "korean;seafood",
+      distance: 0,
+      lat: 35.1539,
+      lon: 129.1225,
+    },
+    {
+      id: "quick-jaecheop",
+      name: "Halmae Jaecheopguk",
+      nameKo: "할매재첩국",
+      cuisine: "korean;soup",
+      distance: 0,
+      lat: 35.1515,
+      lon: 129.114,
+    },
+  ],
+};
 const genericRisk =
   "No place-specific alert is registered in this guide. Check weather, official closures and on-site safety signs before visiting.";
 const minutes = (meters: number) =>
@@ -1384,6 +1475,27 @@ export default function UnifiedSearch({
   useEffect(() => {
     if (!infoPlaces.length) return;
     let cancelled = false;
+    const instantEntries = infoPlaces.map(
+      (place) =>
+        [
+          place.id,
+          (QUICK_FOOD[place.id] || []).map((restaurant) => ({
+            ...restaurant,
+            distance: distanceKm(place, restaurant.lat, restaurant.lon),
+          })),
+        ] as const,
+    );
+    let instantResults = Object.fromEntries(instantEntries);
+    try {
+      const cached = JSON.parse(
+        localStorage.getItem("blueline-food-cache") || "null",
+      );
+      if (cached && typeof cached === "object")
+        instantResults = { ...instantResults, ...cached };
+    } catch {
+      // Curated instant results remain available.
+    }
+    setFoodResults(instantResults);
     setFoodLoading(true);
     setFoodError(false);
     fetch("/api/nearby", {
@@ -1430,6 +1542,11 @@ export default function UnifiedSearch({
           });
           const next = Object.fromEntries(entries);
           setFoodResults(next);
+          try {
+            localStorage.setItem("blueline-food-cache", JSON.stringify(next));
+          } catch {
+            // Recommendations still work when browser storage is unavailable.
+          }
           setFoodError(
             entries.every(([, restaurants]) => restaurants.length === 0),
           );
@@ -1437,8 +1554,12 @@ export default function UnifiedSearch({
       })
       .catch(() => {
         if (!cancelled) {
-          setFoodResults({});
-          setFoodError(true);
+          setFoodResults(instantResults);
+          setFoodError(
+            Object.values(instantResults).every(
+              (restaurants) => !restaurants.length,
+            ),
+          );
         }
       })
       .finally(() => {

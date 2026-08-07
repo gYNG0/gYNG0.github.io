@@ -162,15 +162,31 @@ export default function GeminiGuide({
     setMessages(conversation);
     setLoading(true);
     try {
-      const response = await fetch("/api/gemini", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: question,
-          messages: conversation,
-          language,
-        }),
+      const requestBody = JSON.stringify({
+        message: question,
+        messages: conversation,
+        language,
       });
+      let response: Response | null = null;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 45_000);
+        try {
+          response = await fetch("/api/gemini", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: requestBody,
+            signal: controller.signal,
+          });
+          if (response.ok || response.status < 500) break;
+        } catch {
+          response = null;
+        } finally {
+          window.clearTimeout(timeout);
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 900));
+      }
+      if (!response) throw new Error("AI connection unavailable");
       const data = await response.json();
       setMessages((items) =>
         [
