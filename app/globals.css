@@ -3258,6 +3258,79 @@ footer {
   align-items: center;
   gap: 15px;
 }
+.google-auth-wrap {
+  position: relative;
+}
+.google-auth-wrap > small {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  width: max-content;
+  max-width: 230px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: #fff1ee;
+  color: #a3342e;
+  font-size: 10px;
+  letter-spacing: 0;
+}
+.google-auth-button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 6px 11px !important;
+  border: 1px solid rgba(255, 255, 255, 0.42) !important;
+  border-radius: 99px !important;
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.google-auth-button span {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  color: #4285f4;
+  font-size: 12px;
+}
+.google-user {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 260px;
+}
+.google-user > img,
+.google-user > span {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #d8f64e;
+  color: #143552;
+}
+.google-user > span {
+  display: grid;
+  place-items: center;
+}
+.google-user > b {
+  overflow: hidden;
+  max-width: 105px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  letter-spacing: 0;
+}
+.google-user > button {
+  padding: 6px 8px !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  border-radius: 99px !important;
+  font-size: 9px;
+  white-space: nowrap;
+}
 .guide-label {
   white-space: nowrap;
 }
@@ -3293,6 +3366,20 @@ footer {
     font-size: initial !important;
   }
   .guide-label {
+    display: none;
+  }
+  .google-auth-button {
+    max-width: 44px;
+    overflow: hidden;
+    padding: 6px !important;
+  }
+  .google-auth-button span {
+    flex: 0 0 auto;
+  }
+  .google-user > b {
+    display: none;
+  }
+  .google-user > button {
     display: none;
   }
   .global-language button {

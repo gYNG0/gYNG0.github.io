@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import RoutePlanner from "./RoutePlanner";
 import UnifiedSearch from "./UnifiedSearch";
 import GeminiGuide, { type Language } from "./GeminiGuide";
+import GoogleAuthButton from "./GoogleAuthButton";
 
 type PlaceKey = "haeundae" | "gwangalli" | "songdo" | "taejongdae";
 type Screen =
@@ -398,6 +399,7 @@ export default function HomeClient() {
           <b>B</b> BLUE LINE <i>BUSAN</i>
         </button>
         <div className="topbar-right">
+          <GoogleAuthButton language={language} />
           <span className="guide-label">
             <span className="online-dot" /> {homeCopy.guide}
           </span>
