@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { Language } from "./GeminiGuide";
 
 type Point = {
@@ -344,6 +344,51 @@ const genericRisk =
   "No place-specific alert is registered in this guide. Check weather, official closures and on-site safety signs before visiting.";
 const minutes = (meters: number) =>
   Math.max(1, Math.round((meters / 1000) * 4));
+const hasKnownClosureDuringTrip = (
+  hours: string | undefined,
+  start: string,
+  end: string,
+) => {
+  if (!hours || !start || !end || hours.includes("24/7")) return false;
+  const dayCodes = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+  const availability = new Map<string, boolean>();
+  const expandDays = (text: string) => {
+    const days = new Set<string>();
+    for (const match of text.matchAll(
+      /(Mo|Tu|We|Th|Fr|Sa|Su)(?:-(Mo|Tu|We|Th|Fr|Sa|Su))?/g,
+    )) {
+      const from = dayCodes.indexOf(match[1]);
+      const to = dayCodes.indexOf(match[2] || match[1]);
+      let cursor = from;
+      for (let count = 0; count < 7; count += 1) {
+        days.add(dayCodes[cursor]);
+        if (cursor === to) break;
+        cursor = (cursor + 1) % 7;
+      }
+    }
+    return days;
+  };
+  for (const segment of hours.split(";")) {
+    const days = expandDays(segment);
+    if (!days.size) continue;
+    const open = !/\b(off|closed)\b/i.test(segment);
+    days.forEach((day) => availability.set(day, open));
+  }
+  if (!availability.size) return false;
+  const first = new Date(`${start}T12:00:00`);
+  const last = new Date(`${end}T12:00:00`);
+  if (Number.isNaN(first.getTime()) || Number.isNaN(last.getTime()))
+    return false;
+  let checked = 0;
+  for (
+    const date = new Date(first);
+    date <= last && checked < 370;
+    date.setDate(date.getDate() + 1), checked += 1
+  ) {
+    if (availability.get(dayCodes[date.getDay()]) !== true) return true;
+  }
+  return false;
+};
 const distanceKm = (a: Point, lat: number, lon: number) => {
   const rad = (value: number) => (value * Math.PI) / 180;
   const dLat = rad(lat - a.lat);
@@ -548,10 +593,14 @@ export default function UnifiedSearch({
   initialQuery,
   onClose,
   language,
+  travelStart,
+  travelEnd,
 }: {
   initialQuery: string;
   onClose: () => void;
   language: Language;
+  travelStart: string;
+  travelEnd: string;
 }) {
   const ko = language === "ko";
   const displayName = (point: Point) =>
@@ -578,6 +627,48 @@ export default function UnifiedSearch({
   );
   const [clinicLoading, setClinicLoading] = useState(false);
   const [clinicError, setClinicError] = useState(false);
+  const recommendedFoodResults = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(foodResults).map(([id, restaurants]) => [
+          id,
+          restaurants
+            .filter(
+              (restaurant) =>
+                !hasKnownClosureDuringTrip(
+                  restaurant.hours,
+                  travelStart,
+                  travelEnd,
+                ),
+            )
+            .slice(0, 4),
+        ]),
+      ),
+    [foodResults, travelStart, travelEnd],
+  );
+  const recommendedClinicResults = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(clinicResults).map(([id, clinics]) => {
+          const major = clinics
+            .filter((clinic) => clinic.kind === "hospital")
+            .slice(0, 1);
+          const local = clinics
+            .filter(
+              (clinic) =>
+                clinic.kind === "clinic" &&
+                !hasKnownClosureDuringTrip(
+                  clinic.hours,
+                  travelStart,
+                  travelEnd,
+                ),
+            )
+            .slice(0, 3);
+          return [id, [...major, ...local]];
+        }),
+      ),
+    [clinicResults, travelStart, travelEnd],
+  );
   const mapNode = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
   const layer = useRef<any>(null);
@@ -712,7 +803,7 @@ export default function UnifiedSearch({
         { color: "#177f84", weight: 6 },
       ).addTo(group);
     new Map(
-      Object.values(foodResults)
+      Object.values(recommendedFoodResults)
         .flat()
         .map((restaurant) => [restaurant.id, restaurant]),
     ).forEach((restaurant) =>
@@ -729,7 +820,7 @@ export default function UnifiedSearch({
         .addTo(group),
     );
     new Map(
-      Object.values(clinicResults)
+      Object.values(recommendedClinicResults)
         .flat()
         .map((clinic) => [clinic.id, clinic]),
     ).forEach((clinic) =>
@@ -756,8 +847,8 @@ export default function UnifiedSearch({
     stops,
     origin,
     mapReady,
-    foodResults,
-    clinicResults,
+    recommendedFoodResults,
+    recommendedClinicResults,
     ko,
   ]);
 
@@ -925,7 +1016,7 @@ export default function UnifiedSearch({
     Promise.all(
       infoPlaces.map(async (place) => {
         const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&namedetails=1&extratags=1&accept-language=en&limit=8&q=${encodeURIComponent(`restaurant near ${place.name}, Busan`)}`,
+          `https://nominatim.openstreetmap.org/search?format=json&namedetails=1&extratags=1&accept-language=en&limit=16&q=${encodeURIComponent(`restaurant near ${place.name}, Busan`)}`,
         );
         if (!response.ok) return [place.id, [] as Restaurant[]] as const;
         const data = await response.json();
@@ -947,14 +1038,14 @@ export default function UnifiedSearch({
                   : item.type === "fast_food"
                     ? "fast food"
                     : "local food"),
+              hours: item.extratags?.opening_hours,
               distance: distanceKm(place, Number(item.lat), Number(item.lon)),
               lat: Number(item.lat),
               lon: Number(item.lon),
             };
           })
           .filter((item: Restaurant) => item.name !== "Local restaurant")
-          .sort((a: Restaurant, b: Restaurant) => a.distance - b.distance)
-          .slice(0, 4);
+          .sort((a: Restaurant, b: Restaurant) => a.distance - b.distance);
         return [place.id, restaurants] as const;
       }),
     )
@@ -996,7 +1087,7 @@ export default function UnifiedSearch({
         let local: Clinic[] = [];
         try {
           const response = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&namedetails=1&accept-language=en&limit=10&q=${encodeURIComponent(`hospital near ${place.name}, Busan`)}`,
+            `https://nominatim.openstreetmap.org/search?format=json&namedetails=1&extratags=1&accept-language=en&limit=16&q=${encodeURIComponent(`hospital near ${place.name}, Busan`)}`,
           );
           if (response.ok) {
             const results = await response.json();
@@ -1012,6 +1103,9 @@ export default function UnifiedSearch({
                   nameKo: names["name:ko"] || names.name,
                   kind: "clinic" as const,
                   specialty: item.type,
+                  hours: item.extratags?.opening_hours,
+                  phone:
+                    item.extratags?.phone || item.extratags?.["contact:phone"],
                   distance: distanceKm(
                     place,
                     Number(item.lat),
@@ -1030,11 +1124,10 @@ export default function UnifiedSearch({
                   clinicPriority(a.nameKo || a.name) -
                     clinicPriority(b.nameKo || b.name) ||
                   a.distance - b.distance,
-              )
-              .slice(0, 3);
+              );
           }
         } catch {
-          /* keep the major hospital and Goodoc search link */
+          /* keep the major emergency hospital and Naver Map search link */
         }
         entries.push([
           place.id,
@@ -1288,8 +1381,8 @@ export default function UnifiedSearch({
                   </h3>
                   <p>
                     {ko
-                      ? "각 목적지와 경유지 주변의 네이버 지도 음식점 검색을 제공합니다. 최신 사진, 평점과 영업시간은 네이버 지도에서 확인하세요."
-                      : "Open Naver Map restaurant results for every destination and waypoint. Current photos, ratings and hours remain on Naver Map."}
+                      ? `${travelStart}~${travelEnd} 여행기간과 공개 영업시간을 비교해 알려진 휴무가 겹치는 음식점은 제외했습니다. 최신 평점·임시휴무는 네이버 지도에서 확인하세요.`
+                      : `Known closures overlapping ${travelStart}–${travelEnd} are excluded using public hours. Check current ratings and temporary closures on Naver Map.`}
                   </p>
                   {foodLoading && (
                     <p className="food-loading">
@@ -1321,31 +1414,42 @@ export default function UnifiedSearch({
                               : "Near waypoint"}
                         </span>
                         <div className="restaurant-briefs">
-                          {(foodResults[place.id] || []).map((restaurant) => (
-                            <article key={restaurant.id}>
-                              <strong>
-                                {ko
-                                  ? restaurant.nameKo || restaurant.name
-                                  : restaurant.name}
-                              </strong>
-                              <p>
-                                {restaurant.cuisine
-                                  ? restaurant.cuisine.replaceAll(";", ", ")
-                                  : ko
-                                    ? "음식 종류 정보 없음"
-                                    : "Cuisine not listed"}
-                              </p>
-                              <small>
-                                {restaurant.distance.toFixed(1)} km
-                                {restaurant.hours
-                                  ? ` · ${restaurant.hours}`
-                                  : ""}
-                              </small>
-                            </article>
-                          ))}
+                          {(recommendedFoodResults[place.id] || []).map(
+                            (restaurant) => (
+                              <article key={restaurant.id}>
+                                <strong>
+                                  {ko
+                                    ? restaurant.nameKo || restaurant.name
+                                    : restaurant.name}
+                                </strong>
+                                <p>
+                                  {restaurant.cuisine
+                                    ? restaurant.cuisine.replaceAll(";", ", ")
+                                    : ko
+                                      ? "음식 종류 정보 없음"
+                                      : "Cuisine not listed"}
+                                </p>
+                                <small>
+                                  {restaurant.distance.toFixed(1)} km
+                                  {restaurant.hours
+                                    ? ` · ${restaurant.hours}`
+                                    : ""}
+                                </small>
+                                <a
+                                  href={`https://map.naver.com/p/search/${encodeURIComponent(`${restaurant.nameKo || restaurant.name} 부산`)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  {ko
+                                    ? "네이버 지도에서 평점·휴무 확인 →"
+                                    : "Check rating & closures on Naver Map →"}
+                                </a>
+                              </article>
+                            ),
+                          )}
                         </div>
                         {!foodLoading &&
-                          !(foodResults[place.id] || []).length && (
+                          !(recommendedFoodResults[place.id] || []).length && (
                             <p className="no-food-data">
                               {ko
                                 ? "등록된 음식점 상세 정보가 없습니다."
@@ -1378,8 +1482,8 @@ export default function UnifiedSearch({
                   </h3>
                   <p>
                     {ko
-                      ? "관광지마다 가까운 대형 응급병원 1곳과 동네 병·의원 최대 3곳을 표시합니다. 화상·응급·외상 진료를 우선하고 성형·미용 진료는 후순위로 배치합니다. 굿닥 평점은 각 병원의 후기 검색 링크에서 확인할 수 있습니다."
-                      : "For each attraction, one nearby major emergency hospital and up to three local clinics are shown. Burn, emergency and trauma care rank first; cosmetic and plastic surgery rank last. Verify current ratings through each Goodoc review link."}
+                      ? `${travelStart}~${travelEnd} 여행기간에 알려진 휴무가 겹치는 동네 의료기관은 제외합니다. 가까운 응급병원과 화상·응급·외상 진료를 우선하며, 최신 네이버 지도 평점과 실제 진료 여부는 링크에서 확인하세요.`
+                      : `Local clinics with a known closure during ${travelStart}–${travelEnd} are excluded. Nearby emergency, burn and trauma care rank first; verify current Naver Map ratings and availability through each link.`}
                   </p>
                   {clinicLoading && (
                     <p className="food-loading">
@@ -1391,8 +1495,8 @@ export default function UnifiedSearch({
                   {clinicError && (
                     <p className="food-error">
                       {ko
-                        ? "공개 지도 병원 정보를 불러오지 못했습니다. 굿닥 검색 링크를 이용해 주세요."
-                        : "Public clinic data is temporarily unavailable. Use the Goodoc search links."}
+                        ? "공개 지도 병원 정보를 불러오지 못했습니다. 네이버 지도 검색 링크를 이용해 주세요."
+                        : "Public clinic data is temporarily unavailable. Use the Naver Map search links."}
                     </p>
                   )}
                   <div className="care-place-list">
@@ -1402,56 +1506,59 @@ export default function UnifiedSearch({
                           {index + 1}. {displayName(place)}
                         </h4>
                         <div className="clinic-grid">
-                          {(clinicResults[place.id] || []).map((clinic) => (
-                            <article
-                              key={clinic.id}
-                              className={
-                                clinic.kind === "hospital"
-                                  ? "major-clinic"
-                                  : "local-clinic"
-                              }
-                            >
-                              <span>
-                                {clinic.kind === "hospital"
-                                  ? ko
-                                    ? "대형 응급병원"
-                                    : "MAJOR EMERGENCY HOSPITAL"
-                                  : clinicPriorityLabel(
-                                      clinic.nameKo || clinic.name,
-                                      ko,
-                                    )}
-                              </span>
-                              <strong>
-                                {ko
-                                  ? clinic.nameKo || clinic.name
-                                  : clinic.name}
-                              </strong>
-                              <p>
-                                {clinic.specialty
-                                  ? clinic.specialty.replaceAll(";", ", ")
-                                  : ko
-                                    ? "진료과 정보는 방문 전 확인하세요."
-                                    : "Check specialties before visiting."}
-                              </p>
-                              <small>
-                                {clinic.distance.toFixed(1)} km
-                                {clinic.hours ? ` · ${clinic.hours}` : ""}
-                                {clinic.phone ? ` · ${clinic.phone}` : ""}
-                              </small>
-                              <a
-                                href={`https://www.google.com/search?q=${encodeURIComponent(`site:goodoc.co.kr/hospitals ${clinic.name} 부산`)}`}
-                                target="_blank"
-                                rel="noreferrer"
+                          {(recommendedClinicResults[place.id] || []).map(
+                            (clinic) => (
+                              <article
+                                key={clinic.id}
+                                className={
+                                  clinic.kind === "hospital"
+                                    ? "major-clinic"
+                                    : "local-clinic"
+                                }
                               >
-                                {ko
-                                  ? "굿닥 후기·평점 확인 →"
-                                  : "Check Goodoc reviews & rating →"}
-                              </a>
-                            </article>
-                          ))}
+                                <span>
+                                  {clinic.kind === "hospital"
+                                    ? ko
+                                      ? "대형 응급병원"
+                                      : "MAJOR EMERGENCY HOSPITAL"
+                                    : clinicPriorityLabel(
+                                        clinic.nameKo || clinic.name,
+                                        ko,
+                                      )}
+                                </span>
+                                <strong>
+                                  {ko
+                                    ? clinic.nameKo || clinic.name
+                                    : clinic.name}
+                                </strong>
+                                <p>
+                                  {clinic.specialty
+                                    ? clinic.specialty.replaceAll(";", ", ")
+                                    : ko
+                                      ? "진료과 정보는 방문 전 확인하세요."
+                                      : "Check specialties before visiting."}
+                                </p>
+                                <small>
+                                  {clinic.distance.toFixed(1)} km
+                                  {clinic.hours ? ` · ${clinic.hours}` : ""}
+                                  {clinic.phone ? ` · ${clinic.phone}` : ""}
+                                </small>
+                                <a
+                                  href={`https://map.naver.com/p/search/${encodeURIComponent(`${clinic.nameKo || clinic.name} 부산`)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  {ko
+                                    ? "네이버 지도 평점·휴무 확인 →"
+                                    : "Check rating & closures on Naver Map →"}
+                                </a>
+                              </article>
+                            ),
+                          )}
                         </div>
                         {!clinicLoading &&
-                          !(clinicResults[place.id] || []).length && (
+                          !(recommendedClinicResults[place.id] || [])
+                            .length && (
                             <p className="no-food-data">
                               {ko
                                 ? "반경 5km 안에서 등록된 의료기관을 찾지 못했습니다."
@@ -1460,13 +1567,13 @@ export default function UnifiedSearch({
                           )}
                         <a
                           className="goodoc-area-link"
-                          href={`https://www.google.com/search?q=${encodeURIComponent(`site:goodoc.co.kr/hospitals ${displayName(place)} 병원 굿닥`)}`}
+                          href={`https://map.naver.com/p/search/${encodeURIComponent(`${displayName(place)} 병원`)}`}
                           target="_blank"
                           rel="noreferrer"
                         >
                           {ko
-                            ? `${displayName(place)} 주변 굿닥 병원 더 찾기 →`
-                            : `Find more Goodoc clinics near ${displayName(place)} →`}
+                            ? `${displayName(place)} 주변 네이버 지도 병원 더 찾기 →`
+                            : `Find more hospitals on Naver Map near ${displayName(place)} →`}
                         </a>
                       </section>
                     ))}

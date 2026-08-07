@@ -186,6 +186,7 @@ const attractions = [
 ];
 
 export default function HomeClient() {
+  const today = new Date().toISOString().slice(0, 10);
   const [language, setLanguage] = useState<Language>("ko");
   const [screen, setScreen] = useState<Screen>("home");
   const [query, setQuery] = useState("");
@@ -203,6 +204,9 @@ export default function HomeClient() {
   );
   const [locationHelpOpen, setLocationHelpOpen] = useState(false);
   const [locationPromptOpen, setLocationPromptOpen] = useState(true);
+  const [travelPeriodOpen, setTravelPeriodOpen] = useState(false);
+  const [travelStart, setTravelStart] = useState(today);
+  const [travelEnd, setTravelEnd] = useState(today);
   const [searchedQuery, setSearchedQuery] = useState("");
   const [aiQuestion, setAiQuestion] = useState("");
   const place = useMemo(
@@ -223,6 +227,11 @@ export default function HomeClient() {
           ? savedLanguage
           : "ko",
       );
+      const savedPeriod = JSON.parse(
+        localStorage.getItem("blueline-travel-period") || "null",
+      );
+      if (savedPeriod?.start) setTravelStart(savedPeriod.start);
+      if (savedPeriod?.end) setTravelEnd(savedPeriod.end);
     } catch {
       setHistory([]);
     }
@@ -321,10 +330,14 @@ export default function HomeClient() {
       setLocationMessage(
         "This browser does not support location. Open the site in a current mobile browser or Chrome.",
       );
+      setLocationPromptOpen(false);
+      setTravelPeriodOpen(true);
       return;
     }
     if (!window.isSecureContext) {
       setLocationMessage("Location requires a secure HTTPS connection.");
+      setLocationPromptOpen(false);
+      setTravelPeriodOpen(true);
       return;
     }
     setLocationMessage(
@@ -340,6 +353,7 @@ export default function HomeClient() {
           "Location connected. Walking estimates use 5 minutes per kilometer.",
         );
         setLocationPromptOpen(false);
+        setTravelPeriodOpen(true);
       },
       (error) => {
         if (error.code === error.PERMISSION_DENIED)
@@ -354,9 +368,21 @@ export default function HomeClient() {
           setLocationMessage(
             "Your location could not be determined. Check device location settings, then try again.",
           );
+        setLocationPromptOpen(false);
+        setTravelPeriodOpen(true);
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
     );
+  };
+
+  const saveTravelPeriod = (event: FormEvent) => {
+    event.preventDefault();
+    if (!travelStart || !travelEnd || travelEnd < travelStart) return;
+    localStorage.setItem(
+      "blueline-travel-period",
+      JSON.stringify({ start: travelStart, end: travelEnd }),
+    );
+    setTravelPeriodOpen(false);
   };
 
   return (
@@ -433,7 +459,10 @@ export default function HomeClient() {
                 </button>
                 <button
                   className="secondary"
-                  onClick={() => setLocationPromptOpen(false)}
+                  onClick={() => {
+                    setLocationPromptOpen(false);
+                    setTravelPeriodOpen(true);
+                  }}
                 >
                   {ko ? "나중에" : "Not now"}
                 </button>
@@ -443,6 +472,67 @@ export default function HomeClient() {
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {travelPeriodOpen && (
+        <div
+          className="location-consent travel-period-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="travel-period-title"
+        >
+          <form onSubmit={saveTravelPeriod}>
+            <span className="location-pin">◆</span>
+            <div>
+              <small>BLUE LINE BUSAN</small>
+              <h2 id="travel-period-title">
+                {ko
+                  ? "부산 여행기간을 입력해 주세요"
+                  : "Enter your Busan travel dates"}
+              </h2>
+              <p>
+                {ko
+                  ? "공개된 영업시간과 여행기간을 비교해 휴무가 겹치는 음식점과 의료기관을 추천 목록에서 제외합니다. 영업정보가 없는 장소는 방문 전에 네이버 지도에서 확인해 주세요."
+                  : "We compare public opening hours with your trip and remove places with a known closure. Verify places without hours on Naver Map before visiting."}
+              </p>
+              <div className="travel-date-fields">
+                <label>
+                  <span>{ko ? "여행 시작일" : "Start date"}</span>
+                  <input
+                    type="date"
+                    min={today}
+                    value={travelStart}
+                    onChange={(event) => {
+                      setTravelStart(event.target.value);
+                      if (travelEnd < event.target.value)
+                        setTravelEnd(event.target.value);
+                    }}
+                    required
+                  />
+                </label>
+                <label>
+                  <span>{ko ? "여행 종료일" : "End date"}</span>
+                  <input
+                    type="date"
+                    min={travelStart || today}
+                    value={travelEnd}
+                    onChange={(event) => setTravelEnd(event.target.value)}
+                    required
+                  />
+                </label>
+              </div>
+              <div className="location-consent-actions">
+                <button
+                  disabled={
+                    !travelStart || !travelEnd || travelEnd < travelStart
+                  }
+                >
+                  {ko ? "여행기간 저장" : "Save travel dates"}
+                </button>
+              </div>
+            </div>
+          </form>
         </div>
       )}
 
@@ -517,6 +607,8 @@ export default function HomeClient() {
           initialQuery={searchedQuery}
           onClose={() => setScreen("home")}
           language={language}
+          travelStart={travelStart}
+          travelEnd={travelEnd}
         />
       )}
 
