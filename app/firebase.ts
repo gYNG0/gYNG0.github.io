@@ -2,12 +2,12 @@ import { getApp, getApps, initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAIaO0LIVhvSyz0s7MQVIKsE8Bx_qwgCFg",
-  authDomain: "blue-line-busan.firebaseapp.com",
-  projectId: "blue-line-busan",
-  storageBucket: "blue-line-busan.firebasestorage.app",
-  messagingSenderId: "234503136010",
-  appId: "1:234503136010:web:d4d708d54f7a842f31d0f3",
+  apiKey: "AIzaSyAfdRR_EGM2t9sr9o9LANIVbGWVkQGol3g",
+  authDomain: "bluelinebusan.firebaseapp.com",
+  projectId: "bluelinebusan",
+  storageBucket: "bluelinebusan.firebasestorage.app",
+  messagingSenderId: "73929017372",
+  appId: "1:73929017372:web:36a84b809c06b7411637d9",
 };
 
 export const firebaseApp = getApps().length
