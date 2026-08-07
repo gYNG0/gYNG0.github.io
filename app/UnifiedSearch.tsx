@@ -537,6 +537,8 @@ const MAJOR_HOSPITALS = [
     id: "haeundae-paik",
     name: "Haeundae Paik Hospital",
     nameKo: "해운대백병원",
+    nameJa: "仁済大学海雲台白病院",
+    nameZh: "仁济大学海云台白医院",
     lat: 35.1731,
     lon: 129.1825,
   },
@@ -544,6 +546,8 @@ const MAJOR_HOSPITALS = [
     id: "good-gangan",
     name: "Good GangAn Hospital",
     nameKo: "좋은강안병원",
+    nameJa: "グッド江安病院",
+    nameZh: "Good江安医院",
     lat: 35.1506,
     lon: 129.1092,
   },
@@ -551,6 +555,8 @@ const MAJOR_HOSPITALS = [
     id: "pnuh",
     name: "Pusan National University Hospital",
     nameKo: "부산대학교병원",
+    nameJa: "釜山大学病院",
+    nameZh: "釜山大学医院",
     lat: 35.1012,
     lon: 129.018,
   },
@@ -558,6 +564,8 @@ const MAJOR_HOSPITALS = [
     id: "kosin",
     name: "Kosin University Gospel Hospital",
     nameKo: "고신대학교복음병원",
+    nameJa: "高神大学福音病院",
+    nameZh: "高神大学福音医院",
     lat: 35.0807,
     lon: 129.0142,
   },
@@ -565,6 +573,8 @@ const MAJOR_HOSPITALS = [
     id: "donga",
     name: "Dong-A University Hospital",
     nameKo: "동아대학교병원",
+    nameJa: "東亜大学病院",
+    nameZh: "东亚大学医院",
     lat: 35.1203,
     lon: 129.0176,
   },
@@ -724,9 +734,25 @@ export default function UnifiedSearch({
     language === "ko"
       ? clinic.nameKo || clinic.name
       : language === "ja"
-        ? clinic.nameJa || clinic.nameKo || clinic.name
+        ? clinic.nameJa ||
+          (clinic.nameKo || clinic.name)
+            .replaceAll("종합병원", "総合病院")
+            .replaceAll("응급의료센터", "救急医療センター")
+            .replaceAll("정형외과", "整形外科")
+            .replaceAll("피부과", "皮膚科")
+            .replaceAll("내과", "内科")
+            .replaceAll("의원", "クリニック")
+            .replaceAll("병원", "病院")
         : language === "zh"
-          ? clinic.nameZh || clinic.nameKo || clinic.name
+          ? clinic.nameZh ||
+            (clinic.nameKo || clinic.name)
+              .replaceAll("종합병원", "综合医院")
+              .replaceAll("응급의료센터", "急救医疗中心")
+              .replaceAll("정형외과", "骨科")
+              .replaceAll("피부과", "皮肤科")
+              .replaceAll("내과", "内科")
+              .replaceAll("의원", "诊所")
+              .replaceAll("병원", "医院")
           : clinic.name;
   const say = (en: string, korean: string, japanese = en, chinese = en) =>
     language === "ko"
@@ -1487,6 +1513,8 @@ export default function UnifiedSearch({
               id: major.id,
               name: major.name,
               nameKo: major.nameKo,
+              nameJa: major.nameJa,
+              nameZh: major.nameZh,
               kind: major.kind,
               distance: major.distance,
               lat: major.lat,
