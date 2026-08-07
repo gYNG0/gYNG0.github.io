@@ -7,10 +7,15 @@ type PlaceInput = { lat: number; lon: number };
 
 export async function POST(request: NextRequest) {
   let places: PlaceInput[] = [];
-  let kind: "food" | "care" = "food";
+  let kind: "food" | "care" | "convenience" = "food";
   try {
     const body = await request.json();
-    kind = body?.kind === "care" ? "care" : "food";
+    kind =
+      body?.kind === "care"
+        ? "care"
+        : body?.kind === "convenience"
+          ? "convenience"
+          : "food";
     places = Array.isArray(body?.places)
       ? body.places
           .filter(
@@ -32,7 +37,9 @@ export async function POST(request: NextRequest) {
   const filters =
     kind === "food"
       ? ['["amenity"~"restaurant|cafe|fast_food"]']
-      : ['["amenity"~"hospital|clinic|doctors"]'];
+      : kind === "care"
+        ? ['["amenity"~"hospital|clinic|doctors"]']
+        : ['["shop"="convenience"]'];
   const clauses = places
     .flatMap((place) =>
       filters.flatMap((filter) => [

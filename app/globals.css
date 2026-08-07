@@ -3647,6 +3647,9 @@ footer {
   border: 1px solid #6d5700;
   background: #ffd84d;
 }
+.convenience-marker-dot {
+  background: #3478d4;
+}
 
 .ai-guide {
   position: fixed;

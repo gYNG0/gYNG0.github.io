@@ -537,15 +537,39 @@ const clinicPriority = (name: string) => {
   if (/(성형|plastic|cosmetic|미용|피부|dermatology)/.test(value)) return 4;
   return 2;
 };
-const clinicPriorityLabel = (name: string, ko: boolean) => {
+const clinicPriorityLabel = (name: string, language: Language) => {
   const priority = clinicPriority(name);
-  if (priority === 0)
-    return ko ? "화상·응급 우선" : "BURN / EMERGENCY PRIORITY";
-  if (priority === 1)
-    return ko ? "일반·외상 진료 우선" : "GENERAL / TRAUMA CARE";
-  if (priority === 4)
-    return ko ? "미용 진료 · 후순위" : "COSMETIC CARE · LOWER PRIORITY";
-  return ko ? "가까운 동네 병·의원" : "ACCESSIBLE LOCAL CLINIC";
+  const labels = {
+    ko: [
+      "화상·응급 우선",
+      "일반·외상 진료 우선",
+      "가까운 동네 병·의원",
+      "가까운 동네 병·의원",
+      "미용 진료 · 후순위",
+    ],
+    en: [
+      "BURN / EMERGENCY PRIORITY",
+      "GENERAL / TRAUMA CARE",
+      "ACCESSIBLE LOCAL CLINIC",
+      "ACCESSIBLE LOCAL CLINIC",
+      "COSMETIC CARE · LOWER PRIORITY",
+    ],
+    ja: [
+      "やけど・救急優先",
+      "一般・外傷診療優先",
+      "近隣の病院・クリニック",
+      "近隣の病院・クリニック",
+      "美容診療・優先度低",
+    ],
+    zh: [
+      "烧伤・急救优先",
+      "普通・外伤诊疗优先",
+      "附近医院・诊所",
+      "附近医院・诊所",
+      "美容诊疗・低优先级",
+    ],
+  } as const;
+  return labels[language][priority];
 };
 const foodCategory = (cuisine: string | undefined, language: Language) => {
   const value = (cuisine || "").toLowerCase();
@@ -607,6 +631,153 @@ const foodCategory = (cuisine: string | undefined, language: Language) => {
     },
   } as const;
   return labels[language][key];
+};
+const representativeDish = (
+  cuisine: string | undefined,
+  language: Language,
+) => {
+  const value = (cuisine || "").toLowerCase();
+  const key = /eel/.test(value)
+    ? "eel"
+    : /gukbap/.test(value)
+      ? "gukbap"
+      : /barbecue|korean_bbq/.test(value)
+        ? "bbq"
+        : /sushi|japanese/.test(value)
+          ? "sushi"
+          : /seafood|fish|sashimi/.test(value)
+            ? "seafood"
+            : /pizza|italian/.test(value)
+              ? "pizza"
+              : /cafe|coffee|dessert|bakery/.test(value)
+                ? "dessert"
+                : /chinese/.test(value)
+                  ? "noodle"
+                  : "local";
+  const dishes = {
+    ko: {
+      eel: "장어덮밥",
+      gukbap: "돼지국밥",
+      bbq: "불고기",
+      sushi: "초밥",
+      seafood: "모둠회",
+      pizza: "피자",
+      dessert: "커피와 디저트",
+      noodle: "중화면 요리",
+      local: "지역 대표 메뉴",
+    },
+    en: {
+      eel: "Eel rice bowl",
+      gukbap: "Pork soup with rice",
+      bbq: "Korean barbecue",
+      sushi: "Sushi",
+      seafood: "Assorted sashimi",
+      pizza: "Pizza",
+      dessert: "Coffee and dessert",
+      noodle: "Chinese noodles",
+      local: "Local signature dish",
+    },
+    ja: {
+      eel: "うなぎ丼",
+      gukbap: "豚肉クッパ",
+      bbq: "プルコギ",
+      sushi: "寿司",
+      seafood: "刺身盛り合わせ",
+      pizza: "ピザ",
+      dessert: "コーヒーとデザート",
+      noodle: "中華麺料理",
+      local: "地域の代表メニュー",
+    },
+    zh: {
+      eel: "鳗鱼盖饭",
+      gukbap: "猪肉汤饭",
+      bbq: "烤肉",
+      sushi: "寿司",
+      seafood: "综合生鱼片",
+      pizza: "披萨",
+      dessert: "咖啡和甜点",
+      noodle: "中式面食",
+      local: "当地招牌菜",
+    },
+  } as const;
+  const prefix = {
+    ko: "대표 음식",
+    en: "Signature dish",
+    ja: "代表メニュー",
+    zh: "招牌菜",
+  }[language];
+  return `${prefix}: ${dishes[language][key]}`;
+};
+const formatOpeningHours = (hours: string | undefined, language: Language) => {
+  if (!hours) return "";
+  if (language === "en") return hours;
+  const replacements =
+    language === "ko"
+      ? {
+          Mo: "월",
+          Tu: "화",
+          We: "수",
+          Th: "목",
+          Fr: "금",
+          Sa: "토",
+          Su: "일",
+          off: "휴무",
+        }
+      : language === "ja"
+        ? {
+            Mo: "月",
+            Tu: "火",
+            We: "水",
+            Th: "木",
+            Fr: "金",
+            Sa: "土",
+            Su: "日",
+            off: "休業",
+          }
+        : {
+            Mo: "周一",
+            Tu: "周二",
+            We: "周三",
+            Th: "周四",
+            Fr: "周五",
+            Sa: "周六",
+            Su: "周日",
+            off: "休息",
+          };
+  return Object.entries(replacements).reduce(
+    (text, [from, to]) => text.replaceAll(from, to),
+    hours,
+  );
+};
+const specialtyLabel = (specialty: string | undefined, language: Language) => {
+  const value = (specialty || "").toLowerCase();
+  const key = /hospital/.test(value)
+    ? "hospital"
+    : /doctor|clinic/.test(value)
+      ? "clinic"
+      : "care";
+  return {
+    ko: {
+      hospital: "병원 진료",
+      clinic: "외래·의원 진료",
+      care: "진료과 방문 전 확인",
+    },
+    en: {
+      hospital: "Hospital care",
+      clinic: "Outpatient clinic",
+      care: "Confirm specialty before visiting",
+    },
+    ja: {
+      hospital: "病院診療",
+      clinic: "外来・クリニック診療",
+      care: "診療科は訪問前に確認",
+    },
+    zh: {
+      hospital: "医院诊疗",
+      clinic: "门诊・诊所服务",
+      care: "请在就诊前确认科室",
+    },
+  }[language][key];
 };
 const TOURISM_KEYWORDS = [
   "관광",
@@ -880,6 +1051,7 @@ export default function UnifiedSearch({
       parking: "주차장",
       hospital: "병원",
       restaurant: "음식점",
+      convenience: "편의점",
     },
     en: {
       home: "Home",
@@ -908,6 +1080,7 @@ export default function UnifiedSearch({
       parking: "Parking",
       hospital: "Hospital",
       restaurant: "Food",
+      convenience: "Convenience store",
     },
     ja: {
       home: "ホーム",
@@ -935,6 +1108,7 @@ export default function UnifiedSearch({
       parking: "駐車場",
       hospital: "病院",
       restaurant: "飲食店",
+      convenience: "コンビニ",
     },
     zh: {
       home: "首页",
@@ -961,7 +1135,51 @@ export default function UnifiedSearch({
       parking: "停车场",
       hospital: "医院",
       restaurant: "餐厅",
+      convenience: "便利店",
     },
+  }[language];
+  const careCopy = {
+    ko: {
+      label: "관광지별 의료기관",
+      title: "대형병원과 가까운 동네 병원",
+      description: `${travelStart}~${travelEnd} 여행기간에 알려진 휴무가 겹치는 동네 의료기관은 제외합니다. 가까운 응급병원과 화상·응급·외상 진료를 우선하며, 최신 네이버 지도 평점과 실제 진료 여부는 링크에서 확인하세요.`,
+      loading: "주변 병원을 찾고 있습니다…",
+      error:
+        "공개 지도 병원 정보를 불러오지 못했습니다. 네이버 지도 검색 링크를 이용해 주세요.",
+      major: "대형 응급병원",
+    },
+    en: {
+      label: "CARE NEAR ALL ADDED PLACES",
+      title: "Major hospitals and accessible local clinics",
+      description: `Local clinics with a known closure during ${travelStart}–${travelEnd} are excluded. Nearby emergency, burn and trauma care rank first; verify current Naver Map ratings and availability through each link.`,
+      loading: "Finding nearby hospitals and clinics…",
+      error:
+        "Public clinic data is temporarily unavailable. Use the Naver Map search links.",
+      major: "MAJOR EMERGENCY HOSPITAL",
+    },
+    ja: {
+      label: "追加した全場所周辺の医療機関",
+      title: "大病院と近隣のクリニック",
+      description: `${travelStart}～${travelEnd}の旅行期間と既知の休診日が重なる地域医療機関は除外します。救急・やけど・外傷診療を優先し、最新の評価と診療状況はNAVERマップで確認してください。`,
+      loading: "周辺の病院を検索しています…",
+      error:
+        "公開地図の病院情報を取得できません。NAVERマップの検索をご利用ください。",
+      major: "大規模救急病院",
+    },
+    zh: {
+      label: "所有已添加地点附近的医疗机构",
+      title: "大型医院和附近诊所",
+      description: `将排除在${travelStart}～${travelEnd}旅行期间存在已知休诊日的社区医疗机构。优先推荐急救、烧伤和外伤诊疗机构，请在NAVER地图确认最新评分和接诊情况。`,
+      loading: "正在查找附近医院…",
+      error: "无法读取公共地图的医院信息，请使用NAVER地图搜索。",
+      major: "大型急救医院",
+    },
+  }[language];
+  const foodPeriodDescription = {
+    ko: `${travelStart}~${travelEnd} 여행기간과 공개 영업시간을 비교해 알려진 휴무가 겹치는 음식점은 제외했습니다. 최신 평점·임시휴무는 네이버 지도에서 확인하세요.`,
+    en: `Known closures overlapping ${travelStart}–${travelEnd} are excluded using public hours. Check current ratings and temporary closures on Naver Map.`,
+    ja: `${travelStart}～${travelEnd}の旅行期間と公開営業時間を比較し、既知の休業日が重なる飲食店は除外しました。最新の評価・臨時休業はNAVERマップで確認してください。`,
+    zh: `已根据公开营业时间排除在${travelStart}～${travelEnd}旅行期间存在已知休息日的餐厅。请在NAVER地图确认最新评分和临时停业信息。`,
   }[language];
   const [query, setQuery] = useState(initialQuery);
   const [selected, setSelected] = useState<Point | null>(null);
@@ -985,6 +1203,7 @@ export default function UnifiedSearch({
   const [clinicLoading, setClinicLoading] = useState(false);
   const [clinicError, setClinicError] = useState(false);
   const [parkingResults, setParkingResults] = useState<Parking[]>([]);
+  const [convenienceResults, setConvenienceResults] = useState<Parking[]>([]);
   const recommendedFoodResults = useMemo(
     () =>
       Object.fromEntries(
@@ -1153,7 +1372,7 @@ export default function UnifiedSearch({
       const legend = window.L.control({ position: "bottomright" });
       legend.onAdd = () => {
         const node = window.L.DomUtil.create("div", "map-poi-legend");
-        node.innerHTML = `<span><i class="food-marker-dot"></i>${ui.restaurant}</span><span><i class="hospital-marker-dot"></i>${ui.hospital}</span><span><i class="parking-marker-dot"></i>${ui.parking}</span>`;
+        node.innerHTML = `<span><i class="food-marker-dot"></i>${ui.restaurant}</span><span><i class="hospital-marker-dot"></i>${ui.hospital}</span><span><i class="parking-marker-dot"></i>${ui.parking}</span><span><i class="convenience-marker-dot"></i>${ui.convenience}</span>`;
         return node;
       };
       legend.addTo(map.current);
@@ -1175,7 +1394,7 @@ export default function UnifiedSearch({
     if (!mapReady) return;
     const legend = document.querySelector(".map-poi-legend");
     if (legend)
-      legend.innerHTML = `<span><i class="food-marker-dot"></i>${ui.restaurant}</span><span><i class="hospital-marker-dot"></i>${ui.hospital}</span><span><i class="parking-marker-dot"></i>${ui.parking}</span>`;
+      legend.innerHTML = `<span><i class="food-marker-dot"></i>${ui.restaurant}</span><span><i class="hospital-marker-dot"></i>${ui.hospital}</span><span><i class="parking-marker-dot"></i>${ui.parking}</span><span><i class="convenience-marker-dot"></i>${ui.convenience}</span>`;
   }, [language, mapReady]);
   useEffect(() => {
     if (!map.current || !window.L) return;
@@ -1264,6 +1483,19 @@ export default function UnifiedSearch({
         })
         .addTo(group),
     );
+    convenienceResults.forEach((store) =>
+      window.L.circleMarker([store.lat, store.lon], {
+        radius: 6,
+        color: "#ffffff",
+        fillColor: "#3478d4",
+        fillOpacity: 1,
+        weight: 2,
+      })
+        .bindTooltip(
+          `${ui.convenience} · ${language === "ja" ? store.nameJa || store.name : language === "zh" ? store.nameZh || store.name : store.name}`,
+        )
+        .addTo(group),
+    );
     group.addTo(map.current);
     layer.current = group;
     const bounds = group.getBounds();
@@ -1278,6 +1510,7 @@ export default function UnifiedSearch({
     recommendedFoodResults,
     recommendedClinicResults,
     parkingResults,
+    convenienceResults,
     ko,
     language,
   ]);
@@ -1472,6 +1705,37 @@ export default function UnifiedSearch({
       cancelled = true;
     };
   }, [stops, selected, ko]);
+  useEffect(() => {
+    if (!infoPlaces.length) {
+      setConvenienceResults([]);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/nearby", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind: "convenience",
+        places: infoPlaces.map((place) => ({ lat: place.lat, lon: place.lon })),
+      }),
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("convenience unavailable");
+        return response.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setConvenienceResults(
+          Array.isArray(data.places) ? data.places.slice(0, 100) : [],
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setConvenienceResults([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [stops, selected]);
   useEffect(() => {
     if (!infoPlaces.length) return;
     let cancelled = false;
@@ -1859,11 +2123,7 @@ export default function UnifiedSearch({
                 <article className="all-place-info">
                   <small>{ui.foodLabel}</small>
                   <h3>{ui.foodTitle(infoPlaces.length)}</h3>
-                  <p>
-                    {ko
-                      ? `${travelStart}~${travelEnd} 여행기간과 공개 영업시간을 비교해 알려진 휴무가 겹치는 음식점은 제외했습니다. 최신 평점·임시휴무는 네이버 지도에서 확인하세요.`
-                      : `Known closures overlapping ${travelStart}–${travelEnd} are excluded using public hours. Check current ratings and temporary closures on Naver Map.`}
-                  </p>
+                  <p>{foodPeriodDescription}</p>
                   {foodLoading && (
                     <p className="food-loading">{ui.foodLoading}</p>
                   )}
@@ -1888,14 +2148,18 @@ export default function UnifiedSearch({
                                   </em>
                                 </strong>
                                 <p>
-                                  {restaurant.cuisine
-                                    ? restaurant.cuisine.replaceAll(";", ", ")
-                                    : ui.cuisineMissing}
+                                  {representativeDish(
+                                    restaurant.cuisine,
+                                    language,
+                                  )}
                                 </p>
                                 <small>
                                   {restaurant.distance.toFixed(1)} km
                                   {restaurant.hours
-                                    ? ` · ${restaurant.hours}`
+                                    ? ` · ${formatOpeningHours(
+                                        restaurant.hours,
+                                        language,
+                                      )}`
                                     : ""}
                                 </small>
                                 <a
@@ -1927,32 +2191,14 @@ export default function UnifiedSearch({
               )}
               {tab === "care" && (
                 <article className="all-place-info">
-                  <small>
-                    {ko ? "관광지별 의료기관" : "CARE NEAR ALL ADDED PLACES"}
-                  </small>
-                  <h3>
-                    {ko
-                      ? "대형병원과 가까운 동네 병원"
-                      : "Major hospitals and accessible local clinics"}
-                  </h3>
-                  <p>
-                    {ko
-                      ? `${travelStart}~${travelEnd} 여행기간에 알려진 휴무가 겹치는 동네 의료기관은 제외합니다. 가까운 응급병원과 화상·응급·외상 진료를 우선하며, 최신 네이버 지도 평점과 실제 진료 여부는 링크에서 확인하세요.`
-                      : `Local clinics with a known closure during ${travelStart}–${travelEnd} are excluded. Nearby emergency, burn and trauma care rank first; verify current Naver Map ratings and availability through each link.`}
-                  </p>
+                  <small>{careCopy.label}</small>
+                  <h3>{careCopy.title}</h3>
+                  <p>{careCopy.description}</p>
                   {clinicLoading && (
-                    <p className="food-loading">
-                      {ko
-                        ? "주변 병원을 찾고 있습니다…"
-                        : "Finding nearby hospitals and clinics…"}
-                    </p>
+                    <p className="food-loading">{careCopy.loading}</p>
                   )}
                   {clinicError && (
-                    <p className="food-error">
-                      {ko
-                        ? "공개 지도 병원 정보를 불러오지 못했습니다. 네이버 지도 검색 링크를 이용해 주세요."
-                        : "Public clinic data is temporarily unavailable. Use the Naver Map search links."}
-                    </p>
+                    <p className="food-error">{careCopy.error}</p>
                   )}
                   <div className="care-place-list">
                     {infoPlaces.map((place, index) => (
@@ -1973,25 +2219,24 @@ export default function UnifiedSearch({
                               >
                                 <span>
                                   {clinic.kind === "hospital"
-                                    ? ko
-                                      ? "대형 응급병원"
-                                      : "MAJOR EMERGENCY HOSPITAL"
+                                    ? careCopy.major
                                     : clinicPriorityLabel(
                                         clinic.nameKo || clinic.name,
-                                        ko,
+                                        language,
                                       )}
                                 </span>
                                 <strong>{displayClinicName(clinic)}</strong>
                                 <p>
-                                  {clinic.specialty
-                                    ? clinic.specialty.replaceAll(";", ", ")
-                                    : ko
-                                      ? "진료과 정보는 방문 전 확인하세요."
-                                      : "Check specialties before visiting."}
+                                  {specialtyLabel(clinic.specialty, language)}
                                 </p>
                                 <small>
                                   {clinic.distance.toFixed(1)} km
-                                  {clinic.hours ? ` · ${clinic.hours}` : ""}
+                                  {clinic.hours
+                                    ? ` · ${formatOpeningHours(
+                                        clinic.hours,
+                                        language,
+                                      )}`
+                                    : ""}
                                   {clinic.phone ? ` · ${clinic.phone}` : ""}
                                 </small>
                                 <a
@@ -1999,9 +2244,14 @@ export default function UnifiedSearch({
                                   target="_blank"
                                   rel="noreferrer"
                                 >
-                                  {ko
-                                    ? "네이버 지도 평점·휴무 확인 →"
-                                    : "Check rating & closures on Naver Map →"}
+                                  {
+                                    {
+                                      ko: "네이버 지도 평점·휴무 확인 →",
+                                      en: "Check rating & closures on Naver Map →",
+                                      ja: "NAVERマップで評価・休診日を確認 →",
+                                      zh: "在NAVER地图查看评分和休诊日 →",
+                                    }[language]
+                                  }
                                 </a>
                               </article>
                             ),
@@ -2011,9 +2261,14 @@ export default function UnifiedSearch({
                           !(recommendedClinicResults[place.id] || [])
                             .length && (
                             <p className="no-food-data">
-                              {ko
-                                ? "반경 5km 안에서 등록된 의료기관을 찾지 못했습니다."
-                                : "No mapped care facility found within 5 km."}
+                              {
+                                {
+                                  ko: "반경 5km 안에서 등록된 의료기관을 찾지 못했습니다.",
+                                  en: "No mapped care facility found within 5 km.",
+                                  ja: "半径5km以内に登録された医療機関が見つかりません。",
+                                  zh: "在5公里范围内未找到已登记的医疗机构。",
+                                }[language]
+                              }
                             </p>
                           )}
                         <a
@@ -2022,17 +2277,27 @@ export default function UnifiedSearch({
                           target="_blank"
                           rel="noreferrer"
                         >
-                          {ko
-                            ? `${displayName(place)} 주변 네이버 지도 병원 더 찾기 →`
-                            : `Find more hospitals on Naver Map near ${displayName(place)} →`}
+                          {
+                            {
+                              ko: `${displayName(place)} 주변 네이버 지도 병원 더 찾기 →`,
+                              en: `Find more hospitals on Naver Map near ${displayName(place)} →`,
+                              ja: `${displayName(place)}周辺の病院をNAVERマップでもっと見る →`,
+                              zh: `在NAVER地图查找${displayName(place)}附近更多医院 →`,
+                            }[language]
+                          }
                         </a>
                       </section>
                     ))}
                   </div>
                   <p className="medical-note">
-                    {ko
-                      ? "응급 상황에서는 평점보다 119 또는 가까운 응급실을 우선 이용하세요. 운영시간과 진료 가능 여부는 방문 전에 병원에 확인해야 합니다."
-                      : "In an emergency, call 119 or use the nearest emergency department rather than choosing by rating. Confirm opening hours and availability before visiting."}
+                    {
+                      {
+                        ko: "응급 상황에서는 평점보다 119 또는 가까운 응급실을 우선 이용하세요. 운영시간과 진료 가능 여부는 방문 전에 병원에 확인해야 합니다.",
+                        en: "In an emergency, call 119 or use the nearest emergency department rather than choosing by rating. Confirm opening hours and availability before visiting.",
+                        ja: "緊急時は評価より119または最寄りの救急外来を優先してください。診療時間と受診可否は訪問前に病院へ確認してください。",
+                        zh: "紧急情况下请优先拨打119或前往最近的急诊室，不要只依据评分选择。就诊前请向医院确认营业时间和接诊情况。",
+                      }[language]
+                    }
                   </p>
                 </article>
               )}
