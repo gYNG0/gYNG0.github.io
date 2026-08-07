@@ -48,35 +48,48 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
 
-  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+  const preferredModel = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
+  const fallbackModel = "gemini-2.5-flash-lite";
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [
-              {
-                text: "You are BLUE LINE BUSAN, a concise bilingual Busan travel assistant. Answer in the language used by the visitor. Only help with Busan attractions, coastal travel, route planning, nearby food, hospitals, and safety. Never claim live traffic, live incidents, current ratings, opening hours, or medical diagnosis unless verified data was supplied. Clearly label estimates, recommend checking official maps or emergency services, and tell users to call 119 for immediate emergencies in Korea. Do not request personal information or precise location.",
-              },
-            ],
+    const requestBody = JSON.stringify({
+      systemInstruction: {
+        parts: [
+          {
+            text: "You are BLUE LINE BUSAN, a concise bilingual Busan travel assistant. Answer in the language used by the visitor. Only help with Busan attractions, coastal travel, route planning, nearby food, hospitals, and safety. Never claim live traffic, live incidents, current ratings, opening hours, or medical diagnosis unless verified data was supplied. Clearly label estimates, recommend checking official maps or emergency services, and tell users to call 119 for immediate emergencies in Korea. Do not request personal information or precise location.",
           },
-          contents: [{ role: "user", parts: [{ text: message }] }],
-          generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 1200,
-          },
-        }),
+        ],
       },
-    );
-    const data = await response.json();
+      contents: [{ role: "user", parts: [{ text: message }] }],
+      generationConfig: { maxOutputTokens: 1200 },
+    });
+    const callModel = (model: string) =>
+      fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          body: requestBody,
+        },
+      );
+    let activeModel = preferredModel;
+    let response = await callModel(activeModel);
+    let data = await response.json();
+    if (!response.ok && activeModel !== fallbackModel) {
+      console.warn("Preferred Gemini model unavailable; using fallback", {
+        model: activeModel,
+        status: response.status,
+        code: data.error?.status,
+      });
+      activeModel = fallbackModel;
+      response = await callModel(activeModel);
+      data = await response.json();
+    }
     if (!response.ok) {
       console.error("Gemini API error", {
+        model: activeModel,
         status: response.status,
         code: data.error?.status,
         message: data.error?.message,
@@ -97,7 +110,7 @@ export async function POST(request: NextRequest) {
       .join("")
       .trim();
     if (!answer) throw new Error("empty response");
-    return NextResponse.json({ answer });
+    return NextResponse.json({ answer, model: activeModel });
   } catch {
     return NextResponse.json(
       { error: "AI 서비스에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요." },
