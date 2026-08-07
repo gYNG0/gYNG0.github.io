@@ -2097,7 +2097,6 @@ export default function UnifiedSearch({
             <div className="result-title">
               <div>
                 <small>{ui.selected}</small>
-                <h2>{displayName(selected)}</h2>
               </div>
               {points.length > 1 && (
                 <select

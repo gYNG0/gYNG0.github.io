@@ -302,7 +302,7 @@ export default function HomeClient() {
     }
     saveHistory(clean);
     const abstractTravelQuestion =
-      /(야간|야경|분위기|데이트|로맨틱|추천|night|nightlife|atmospher|romantic|date spot|recommend|夜景|雰囲気|おすすめ|夜间|氛围|推荐)/i.test(
+      /(명소|야간|야경|분위기|데이트|로맨틱|추천|attraction|landmark|sightseeing|night|nightlife|atmospher|romantic|date spot|recommend|名所|観光地|夜景|雰囲気|おすすめ|名胜|景点|夜间|氛围|推荐)/i.test(
         clean,
       );
     if (abstractTravelQuestion) {
