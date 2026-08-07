@@ -40,12 +40,15 @@ export async function POST(request: NextRequest) {
       : kind === "care"
         ? ['["amenity"~"hospital|clinic|doctors"]']
         : ['["shop"="convenience"]'];
+  // Convenience stores are dense in Busan. A smaller per-attraction radius
+  // keeps the public Overpass request fast and dependable.
+  const radius = kind === "convenience" ? 1200 : 2500;
   const clauses = places
     .flatMap((place) =>
       filters.flatMap((filter) => [
-        `node(around:2500,${place.lat},${place.lon})${filter}`,
-        `way(around:2500,${place.lat},${place.lon})${filter}`,
-        `relation(around:2500,${place.lat},${place.lon})${filter}`,
+        `node(around:${radius},${place.lat},${place.lon})${filter}`,
+        `way(around:${radius},${place.lat},${place.lon})${filter}`,
+        `relation(around:${radius},${place.lat},${place.lon})${filter}`,
       ]),
     )
     .join(";");

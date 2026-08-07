@@ -1696,7 +1696,23 @@ export default function UnifiedSearch({
         const parking = Array.isArray(data.parking)
           ? (data.parking as Parking[])
           : [];
-        setParkingResults(parking);
+        // Show no more than the three nearest parking lots for each stop.
+        const nearest = infoPlaces.flatMap((place) =>
+          parking
+            .map((item) => ({
+              item,
+              distance: distanceKm(place, item.lat, item.lon),
+            }))
+            .sort((a, b) => a.distance - b.distance)
+            .slice(0, 3)
+            .map(({ item }) => item),
+        );
+        setParkingResults(
+          nearest.filter(
+            (item, index, items) =>
+              items.findIndex((other) => other.id === item.id) === index,
+          ),
+        );
       })
       .catch(() => {
         if (!cancelled) setParkingResults([]);
@@ -1725,8 +1741,27 @@ export default function UnifiedSearch({
       })
       .then((data) => {
         if (cancelled) return;
+        const stores = Array.isArray(data.places)
+          ? (data.places as Parking[])
+          : [];
+        // Keep the closest stores around every attraction so markers remain
+        // relevant and visible instead of being lost in a city-wide cluster.
+        const nearest = infoPlaces.flatMap((place) =>
+          stores
+            .map((item) => ({
+              item,
+              distance: distanceKm(place, item.lat, item.lon),
+            }))
+            .filter(({ distance }) => distance <= 1.25)
+            .sort((a, b) => a.distance - b.distance)
+            .slice(0, 8)
+            .map(({ item }) => item),
+        );
         setConvenienceResults(
-          Array.isArray(data.places) ? data.places.slice(0, 100) : [],
+          nearest.filter(
+            (item, index, items) =>
+              items.findIndex((other) => other.id === item.id) === index,
+          ),
         );
       })
       .catch(() => {
