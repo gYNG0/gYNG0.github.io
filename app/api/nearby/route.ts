@@ -71,6 +71,8 @@ export async function POST(request: NextRequest) {
             item.tags?.["name:ko"] ||
             "",
           nameKo: item.tags?.["name:ko"] || item.tags?.name,
+          nameJa: item.tags?.["name:ja"],
+          nameZh: item.tags?.["name:zh"] || item.tags?.["name:zh-Hans"],
           cuisine: item.tags?.cuisine,
           hours: item.tags?.opening_hours,
           phone: item.tags?.phone || item.tags?.["contact:phone"],

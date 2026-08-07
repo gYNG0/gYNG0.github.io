@@ -7,6 +7,8 @@ type Point = {
   id: string;
   name: string;
   nameKo?: string;
+  nameJa?: string;
+  nameZh?: string;
   lat: number;
   lon: number;
   risk: string;
@@ -22,6 +24,8 @@ type Restaurant = {
   id: string;
   name: string;
   nameKo?: string;
+  nameJa?: string;
+  nameZh?: string;
   cuisine?: string;
   hours?: string;
   distance: number;
@@ -32,6 +36,8 @@ type Clinic = {
   id: string;
   name: string;
   nameKo?: string;
+  nameJa?: string;
+  nameZh?: string;
   kind: "hospital" | "clinic";
   specialty?: string;
   phone?: string;
@@ -43,6 +49,8 @@ type Clinic = {
 type Parking = {
   id: string;
   name: string;
+  nameJa?: string;
+  nameZh?: string;
   lat: number;
   lon: number;
 };
@@ -345,6 +353,28 @@ const aliases: Record<string, string[]> = {
     "札嘎其市场",
   ],
   beomeosa: ["beomeosa", "beomeosa temple", "범어사", "梵魚寺", "梵鱼寺"],
+};
+const PLACE_TRANSLATIONS: Record<string, { ja: string; zh: string }> = {
+  haeundae: { ja: "海雲台海水浴場", zh: "海云台海水浴场" },
+  gamcheon: { ja: "甘川文化村", zh: "甘川文化村" },
+  gwangalli: { ja: "広安里海水浴場", zh: "广安里海水浴场" },
+  "busan-station": { ja: "釜山駅", zh: "釜山站" },
+  yongdusan: { ja: "龍頭山公園", zh: "龙头山公园" },
+  huinnyeoul: { ja: "ヒンヨウル文化村", zh: "白浅文化村" },
+  songdo: { ja: "松島海水浴場", zh: "松岛海水浴场" },
+  taejongdae: { ja: "太宗台", zh: "太宗台" },
+  hwangnyeongsan: { ja: "荒嶺山展望台", zh: "荒岭山观景台" },
+  "the-bay-101": { ja: "ザ・ベイ101", zh: "The Bay 101" },
+  cheongsapo: { ja: "青沙浦タリットル展望台", zh: "青沙浦踏石观景台" },
+  "blueline-park": { ja: "海雲台ブルーラインパーク", zh: "海云台蓝线公园" },
+  oryukdo: { ja: "五六島スカイウォーク", zh: "五六岛天空步道" },
+  igidae: { ja: "二妓台海岸散策路", zh: "二妓台海岸步道" },
+  dadaepo: { ja: "多大浦海水浴場", zh: "多大浦海水浴场" },
+  "haedong-yonggungsa": { ja: "海東龍宮寺", zh: "海东龙宫寺" },
+  "busan-x-sky": { ja: "釜山エックス・ザ・スカイ", zh: "釜山X the SKY" },
+  dongbaekseom: { ja: "冬柏島", zh: "冬柏岛" },
+  jagalchi: { ja: "チャガルチ市場", zh: "札嘎其市场" },
+  beomeosa: { ja: "梵魚寺", zh: "梵鱼寺" },
 };
 const genericRisk =
   "No place-specific alert is registered in this guide. Check weather, official closures and on-site safety signs before visiting.";
@@ -650,6 +680,8 @@ async function findBusanPlace(value: string): Promise<Point> {
       result.display_name.split(",")[0] ||
       clean,
     nameKo: names["name:ko"] || clean,
+    nameJa: names["name:ja"],
+    nameZh: names["name:zh"] || names["name:zh-Hans"],
     lat: Number(result.lat),
     lon: Number(result.lon),
     risk: genericRisk,
@@ -673,8 +705,147 @@ export default function UnifiedSearch({
 }) {
   const ko = language === "ko";
   const displayName = (point: Point) =>
-    ko ? point.nameKo || point.name : point.name;
-  const say = (en: string, korean: string) => (ko ? korean : en);
+    language === "ko"
+      ? point.nameKo || point.name
+      : language === "ja"
+        ? point.nameJa || PLACE_TRANSLATIONS[point.id]?.ja || point.name
+        : language === "zh"
+          ? point.nameZh || PLACE_TRANSLATIONS[point.id]?.zh || point.name
+          : point.name;
+  const displayRestaurantName = (restaurant: Restaurant) =>
+    language === "ko"
+      ? restaurant.nameKo || restaurant.name
+      : language === "ja"
+        ? restaurant.nameJa || restaurant.nameKo || restaurant.name
+        : language === "zh"
+          ? restaurant.nameZh || restaurant.nameKo || restaurant.name
+          : restaurant.name;
+  const displayClinicName = (clinic: Clinic) =>
+    language === "ko"
+      ? clinic.nameKo || clinic.name
+      : language === "ja"
+        ? clinic.nameJa || clinic.nameKo || clinic.name
+        : language === "zh"
+          ? clinic.nameZh || clinic.nameKo || clinic.name
+          : clinic.name;
+  const say = (en: string, korean: string, japanese = en, chinese = en) =>
+    language === "ko"
+      ? korean
+      : language === "ja"
+        ? japanese
+        : language === "zh"
+          ? chinese
+          : en;
+  const ui = {
+    ko: {
+      home: "홈",
+      guide: "검색 관광지 안내",
+      placeholder: "부산 지명 또는 관광지를 검색하세요",
+      search: "검색",
+      wait: "잠시만요…",
+      selected: "선택한 장소",
+      choose: "관광지 선택",
+      route: "경로 안내",
+      food: "주변 음식점",
+      care: "주변 병원",
+      safety: "안전 정보",
+      foodLabel: "추가한 모든 장소 주변 음식점",
+      foodTitle: (n: number) => `${n}개 장소의 음식점 찾기`,
+      foodLoading: "인근 음식점 정보를 찾고 있습니다…",
+      foodError:
+        "공개 지도 음식점 정보를 불러오지 못했습니다. 아래 네이버 지도 검색을 이용해 주세요.",
+      destinationNear: "목적지 주변",
+      waypointNear: "경유지 주변",
+      noFood: "등록된 음식점 상세 정보가 없습니다.",
+      naverCheck: "네이버 지도에서 평점·휴무 확인 →",
+      naverMore: "네이버 지도에서 더 보기 →",
+      cuisineMissing: "음식 종류 정보 없음",
+      parking: "주차장",
+      hospital: "병원",
+      restaurant: "음식점",
+    },
+    en: {
+      home: "Home",
+      guide: "SEARCHED PLACE GUIDE",
+      placeholder: "Search any Busan place or attraction",
+      search: "Search",
+      wait: "Please wait…",
+      selected: "SELECTED PLACE",
+      choose: "Choose an attraction",
+      route: "Route planner",
+      food: "Find food",
+      care: "Nearby care",
+      safety: "Safety board",
+      foodLabel: "FOOD NEAR ALL ADDED PLACES",
+      foodTitle: (n: number) =>
+        `Restaurants near ${n} added place${n === 1 ? "" : "s"}`,
+      foodLoading: "Finding nearby restaurant details…",
+      foodError:
+        "Public restaurant data is temporarily unavailable. Use the Naver Map links below.",
+      destinationNear: "Near destination",
+      waypointNear: "Near waypoint",
+      noFood: "No detailed restaurant records found.",
+      naverCheck: "Check rating & closures on Naver Map →",
+      naverMore: "See more on Naver Map →",
+      cuisineMissing: "Cuisine not listed",
+      parking: "Parking",
+      hospital: "Hospital",
+      restaurant: "Food",
+    },
+    ja: {
+      home: "ホーム",
+      guide: "検索した観光地ガイド",
+      placeholder: "釜山の地名または観光地を検索",
+      search: "検索",
+      wait: "処理中…",
+      selected: "選択した場所",
+      choose: "観光地を選択",
+      route: "ルート案内",
+      food: "周辺グルメ",
+      care: "周辺の病院",
+      safety: "安全情報",
+      foodLabel: "追加した全場所の周辺グルメ",
+      foodTitle: (n: number) => `${n}か所周辺の飲食店`,
+      foodLoading: "周辺の飲食店を検索しています…",
+      foodError:
+        "公開地図の飲食店情報を取得できません。NAVERマップの検索をご利用ください。",
+      destinationNear: "目的地周辺",
+      waypointNear: "経由地周辺",
+      noFood: "登録された飲食店情報がありません。",
+      naverCheck: "NAVERマップで評価・休業日を確認 →",
+      naverMore: "NAVERマップでもっと見る →",
+      cuisineMissing: "料理ジャンル情報なし",
+      parking: "駐車場",
+      hospital: "病院",
+      restaurant: "飲食店",
+    },
+    zh: {
+      home: "首页",
+      guide: "搜索景点指南",
+      placeholder: "搜索釜山地名或旅游景点",
+      search: "搜索",
+      wait: "处理中…",
+      selected: "已选地点",
+      choose: "选择旅游景点",
+      route: "路线规划",
+      food: "附近美食",
+      care: "附近医院",
+      safety: "安全信息",
+      foodLabel: "所有已添加地点的附近美食",
+      foodTitle: (n: number) => `${n}个地点附近的餐厅`,
+      foodLoading: "正在查找附近餐厅…",
+      foodError: "无法读取公共地图的餐厅信息，请使用NAVER地图搜索。",
+      destinationNear: "目的地附近",
+      waypointNear: "途经点附近",
+      noFood: "没有已登记的餐厅详细信息。",
+      naverCheck: "在NAVER地图查看评分和休息日 →",
+      naverMore: "在NAVER地图查看更多 →",
+      cuisineMissing: "暂无菜系信息",
+      parking: "停车场",
+      hospital: "医院",
+      restaurant: "餐厅",
+    },
+  }[language];
   const [query, setQuery] = useState(initialQuery);
   const [selected, setSelected] = useState<Point | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
@@ -751,6 +922,8 @@ export default function UnifiedSearch({
         say(
           "Enter a Busan place or tourist attraction.",
           "부산의 지명이나 관광지를 입력하세요.",
+          "釜山の地名または観光地を入力してください。",
+          "请输入釜山的地名或旅游景点。",
         ),
       );
       return;
@@ -766,6 +939,8 @@ export default function UnifiedSearch({
         say(
           "Busan's representative attractions are shown on the map. Select one for route, food and safety details.",
           "부산 대표 관광지를 지도에 표시했습니다. 관광지를 선택하면 경로·음식점·안전 정보를 확인할 수 있습니다.",
+          "釜山の代表的な観光地を地図に表示しました。場所を選ぶとルート・グルメ・安全情報を確認できます。",
+          "已在地图上显示釜山代表性景点。选择地点即可查看路线、美食和安全信息。",
         ),
       );
       setLoading(false);
@@ -780,6 +955,8 @@ export default function UnifiedSearch({
         say(
           `${found.name} selected. Add waypoints below, then use your location to calculate.`,
           `${displayName(found)}을(를) 선택했습니다. 경유지를 추가한 후 현재 위치로 경로를 계산하세요.`,
+          `${displayName(found)}を選択しました。経由地を追加してから現在地でルートを計算してください。`,
+          `已选择${displayName(found)}。添加途经点后，请使用当前位置计算路线。`,
         ),
       );
     } catch {
@@ -787,6 +964,8 @@ export default function UnifiedSearch({
         say(
           "The place could not be found. Try a more specific Busan place name.",
           "장소를 찾지 못했습니다. 더 구체적인 부산 지명을 입력해 주세요.",
+          "場所が見つかりませんでした。より具体的な釜山の地名を入力してください。",
+          "找不到该地点，请输入更具体的釜山地名。",
         ),
       );
       setPoints([]);
@@ -828,6 +1007,8 @@ export default function UnifiedSearch({
           say(
             `${unique.length} AI-recommended attractions were added in suggested visit order. They are ready as the destination and waypoints.`,
             `AI 추천 관광지 ${unique.length}곳을 추천 순서대로 목적지와 경유지에 추가했습니다.`,
+            `AIおすすめ観光地${unique.length}か所を、おすすめ順に目的地と経由地へ追加しました。`,
+            `已按推荐顺序将${unique.length}个AI推荐景点添加为目的地和途经点。`,
           ),
         );
       })
@@ -855,8 +1036,7 @@ export default function UnifiedSearch({
       const legend = window.L.control({ position: "bottomright" });
       legend.onAdd = () => {
         const node = window.L.DomUtil.create("div", "map-poi-legend");
-        node.innerHTML =
-          '<span><i class="food-marker-dot"></i>음식점 / Food</span><span><i class="hospital-marker-dot"></i>병원 / Hospital</span><span><i class="parking-marker-dot"></i>주차장 / Parking</span>';
+        node.innerHTML = `<span><i class="food-marker-dot"></i>${ui.restaurant}</span><span><i class="hospital-marker-dot"></i>${ui.hospital}</span><span><i class="parking-marker-dot"></i>${ui.parking}</span>`;
         return node;
       };
       legend.addTo(map.current);
@@ -875,6 +1055,12 @@ export default function UnifiedSearch({
     }
   }, []);
   useEffect(() => {
+    if (!mapReady) return;
+    const legend = document.querySelector(".map-poi-legend");
+    if (legend)
+      legend.innerHTML = `<span><i class="food-marker-dot"></i>${ui.restaurant}</span><span><i class="hospital-marker-dot"></i>${ui.hospital}</span><span><i class="parking-marker-dot"></i>${ui.parking}</span>`;
+  }, [language, mapReady]);
+  useEffect(() => {
     if (!map.current || !window.L) return;
     if (layer.current) layer.current.remove();
     const group = window.L.featureGroup();
@@ -887,7 +1073,7 @@ export default function UnifiedSearch({
         fillOpacity: 1,
         weight: 2,
       })
-        .bindTooltip(`${index + 1}. ${point.name}`, {
+        .bindTooltip(`${index + 1}. ${displayName(point)}`, {
           permanent: routePoints.length < 5,
           direction: "top",
         })
@@ -902,7 +1088,7 @@ export default function UnifiedSearch({
           fillOpacity: 1,
           weight: 2,
         })
-          .bindTooltip(`${index + 1}. ${point.name}`)
+          .bindTooltip(`${index + 1}. ${displayName(point)}`)
           .on("click", () => setSelected(point))
           .addTo(group),
       );
@@ -923,9 +1109,7 @@ export default function UnifiedSearch({
         fillOpacity: 1,
         weight: 2,
       })
-        .bindTooltip(
-          `Food · ${ko ? restaurant.nameKo || restaurant.name : restaurant.name}`,
-        )
+        .bindTooltip(`${ui.restaurant} · ${displayRestaurantName(restaurant)}`)
         .addTo(group),
     );
     new Map(
@@ -940,9 +1124,7 @@ export default function UnifiedSearch({
         fillOpacity: 1,
         weight: 2,
       })
-        .bindTooltip(
-          `Hospital · ${ko ? clinic.nameKo || clinic.name : clinic.name}`,
-        )
+        .bindTooltip(`${ui.hospital} · ${displayClinicName(clinic)}`)
         .addTo(group),
     );
     parkingResults.forEach((parking) =>
@@ -953,7 +1135,9 @@ export default function UnifiedSearch({
         fillOpacity: 1,
         weight: 2,
       })
-        .bindTooltip(`${ko ? "주차장" : "Parking"} · ${parking.name}`)
+        .bindTooltip(
+          `${ui.parking} · ${language === "ja" ? parking.nameJa || parking.name : language === "zh" ? parking.nameZh || parking.name : parking.name}`,
+        )
         .on("click", () => {
           window.open(
             `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${parking.name} ${parking.lat},${parking.lon}`)}`,
@@ -978,6 +1162,7 @@ export default function UnifiedSearch({
     recommendedClinicResults,
     parkingResults,
     ko,
+    language,
   ]);
 
   useEffect(() => {
@@ -1199,6 +1384,8 @@ export default function UnifiedSearch({
                 id: item.id,
                 name: item.name,
                 nameKo: item.nameKo,
+                nameJa: item.nameJa,
+                nameZh: item.nameZh,
                 cuisine:
                   item.cuisine ||
                   (item.amenity === "cafe"
@@ -1333,10 +1520,10 @@ export default function UnifiedSearch({
   return (
     <section className="unified-search">
       <header>
-        <button onClick={onClose}>← {ko ? "홈" : "Home"}</button>
+        <button onClick={onClose}>← {ui.home}</button>
         <div>
           <b>BLUE LINE BUSAN</b>
-          <span>{ko ? "검색 관광지 안내" : "SEARCHED PLACE GUIDE"}</span>
+          <span>{ui.guide}</span>
         </div>
       </header>
       <div className="unified-inner">
@@ -1344,22 +1531,10 @@ export default function UnifiedSearch({
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={
-              ko
-                ? "부산 지명 또는 관광지를 검색하세요"
-                : "Search any Busan place or attraction"
-            }
+            placeholder={ui.placeholder}
             aria-label={ko ? "부산 장소 검색" : "Search any Busan place"}
           />
-          <button disabled={loading}>
-            {loading
-              ? ko
-                ? "잠시만요…"
-                : "Please wait…"
-              : ko
-                ? "검색"
-                : "Search"}
-          </button>
+          <button disabled={loading}>{loading ? ui.wait : ui.search}</button>
         </form>
         <p className="unified-message" role="status">
           {message}
@@ -1373,7 +1548,7 @@ export default function UnifiedSearch({
           <>
             <div className="result-title">
               <div>
-                <small>{ko ? "선택한 장소" : "SELECTED PLACE"}</small>
+                <small>{ui.selected}</small>
                 <h2>{displayName(selected)}</h2>
               </div>
               {points.length > 1 && (
@@ -1389,7 +1564,7 @@ export default function UnifiedSearch({
                       setRoute(null);
                     }
                   }}
-                  aria-label={ko ? "관광지 선택" : "Choose an attraction"}
+                  aria-label={ui.choose}
                 >
                   {points.map((point) => (
                     <option key={point.id} value={point.id}>
@@ -1404,25 +1579,25 @@ export default function UnifiedSearch({
                 className={tab === "route" ? "active" : ""}
                 onClick={() => setTab("route")}
               >
-                {ko ? "경로 안내" : "Route planner"}
+                {ui.route}
               </button>
               <button
                 className={tab === "food" ? "active" : ""}
                 onClick={() => setTab("food")}
               >
-                {ko ? "주변 음식점" : "Find food"}
+                {ui.food}
               </button>
               <button
                 className={tab === "care" ? "active" : ""}
                 onClick={() => setTab("care")}
               >
-                {ko ? "주변 병원" : "Nearby care"}
+                {ui.care}
               </button>
               <button
                 className={tab === "safety" ? "active" : ""}
                 onClick={() => setTab("safety")}
               >
-                {ko ? "안전 정보" : "Safety board"}
+                {ui.safety}
               </button>
             </nav>
             <div className="result-panel tab-slide-panel" key={tab}>
@@ -1533,35 +1708,17 @@ export default function UnifiedSearch({
               )}
               {tab === "food" && (
                 <article className="all-place-info">
-                  <small>
-                    {ko
-                      ? "추가한 모든 장소 주변 음식점"
-                      : "FOOD NEAR ALL ADDED PLACES"}
-                  </small>
-                  <h3>
-                    {ko
-                      ? `${infoPlaces.length}개 장소의 음식점 찾기`
-                      : `Restaurants near ${infoPlaces.length} added place${infoPlaces.length === 1 ? "" : "s"}`}
-                  </h3>
+                  <small>{ui.foodLabel}</small>
+                  <h3>{ui.foodTitle(infoPlaces.length)}</h3>
                   <p>
                     {ko
                       ? `${travelStart}~${travelEnd} 여행기간과 공개 영업시간을 비교해 알려진 휴무가 겹치는 음식점은 제외했습니다. 최신 평점·임시휴무는 네이버 지도에서 확인하세요.`
                       : `Known closures overlapping ${travelStart}–${travelEnd} are excluded using public hours. Check current ratings and temporary closures on Naver Map.`}
                   </p>
                   {foodLoading && (
-                    <p className="food-loading">
-                      {ko
-                        ? "인근 음식점 정보를 찾고 있습니다…"
-                        : "Finding nearby restaurant details…"}
-                    </p>
+                    <p className="food-loading">{ui.foodLoading}</p>
                   )}
-                  {foodError && (
-                    <p className="food-error">
-                      {ko
-                        ? "공개 지도 음식점 정보를 불러오지 못했습니다. 아래 네이버 지도 검색을 이용해 주세요."
-                        : "Public restaurant data is temporarily unavailable. Use the Naver Map links below."}
-                    </p>
-                  )}
+                  {foodError && <p className="food-error">{ui.foodError}</p>}
                   <div className="place-info-grid">
                     {infoPlaces.map((place, index) => (
                       <section key={`food-${place.id}-${index}`}>
@@ -1569,22 +1726,14 @@ export default function UnifiedSearch({
                           {index + 1}. {displayName(place)}
                         </b>
                         <span>
-                          {ko
-                            ? index === 0
-                              ? "목적지 주변"
-                              : "경유지 주변"
-                            : index === 0
-                              ? "Near destination"
-                              : "Near waypoint"}
+                          {index === 0 ? ui.destinationNear : ui.waypointNear}
                         </span>
                         <div className="restaurant-briefs">
                           {(recommendedFoodResults[place.id] || []).map(
                             (restaurant) => (
                               <article key={restaurant.id}>
                                 <strong>
-                                  {ko
-                                    ? restaurant.nameKo || restaurant.name
-                                    : restaurant.name}
+                                  {displayRestaurantName(restaurant)}
                                   <em className="food-kind-badge">
                                     {foodCategory(restaurant.cuisine, language)}
                                   </em>
@@ -1592,9 +1741,7 @@ export default function UnifiedSearch({
                                 <p>
                                   {restaurant.cuisine
                                     ? restaurant.cuisine.replaceAll(";", ", ")
-                                    : ko
-                                      ? "음식 종류 정보 없음"
-                                      : "Cuisine not listed"}
+                                    : ui.cuisineMissing}
                                 </p>
                                 <small>
                                   {restaurant.distance.toFixed(1)} km
@@ -1607,9 +1754,7 @@ export default function UnifiedSearch({
                                   target="_blank"
                                   rel="noreferrer"
                                 >
-                                  {ko
-                                    ? "네이버 지도에서 평점·휴무 확인 →"
-                                    : "Check rating & closures on Naver Map →"}
+                                  {ui.naverCheck}
                                 </a>
                               </article>
                             ),
@@ -1617,20 +1762,14 @@ export default function UnifiedSearch({
                         </div>
                         {!foodLoading &&
                           !(recommendedFoodResults[place.id] || []).length && (
-                            <p className="no-food-data">
-                              {ko
-                                ? "등록된 음식점 상세 정보가 없습니다."
-                                : "No detailed restaurant records found."}
-                            </p>
+                            <p className="no-food-data">{ui.noFood}</p>
                           )}
                         <a
                           href={`https://map.naver.com/p/search/${encodeURIComponent(`${place.name} 맛집`)}`}
                           target="_blank"
                           rel="noreferrer"
                         >
-                          {ko
-                            ? "네이버 지도에서 더 보기 →"
-                            : "See more on Naver Map →"}
+                          {ui.naverMore}
                         </a>
                       </section>
                     ))}
@@ -1693,11 +1832,7 @@ export default function UnifiedSearch({
                                         ko,
                                       )}
                                 </span>
-                                <strong>
-                                  {ko
-                                    ? clinic.nameKo || clinic.name
-                                    : clinic.name}
-                                </strong>
+                                <strong>{displayClinicName(clinic)}</strong>
                                 <p>
                                   {clinic.specialty
                                     ? clinic.specialty.replaceAll(";", ", ")

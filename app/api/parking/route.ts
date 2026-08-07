@@ -58,6 +58,8 @@ export async function POST(request: NextRequest) {
         .map((item: any) => ({
           id: `parking-${item.type}-${item.id}`,
           name: item.tags?.["name:ko"] || item.tags?.name || "공개 주차장",
+          nameJa: item.tags?.["name:ja"],
+          nameZh: item.tags?.["name:zh"] || item.tags?.["name:zh-Hans"],
           lat: Number(item.lat ?? item.center?.lat),
           lon: Number(item.lon ?? item.center?.lon),
         }))
