@@ -208,6 +208,7 @@ export default function HomeClient() {
   const [travelStart, setTravelStart] = useState(today);
   const [travelEnd, setTravelEnd] = useState(today);
   const [searchedQuery, setSearchedQuery] = useState("");
+  const [recommendedPlaces, setRecommendedPlaces] = useState<string[]>([]);
   const [aiQuestion, setAiQuestion] = useState("");
   const place = useMemo(
     () => places.find((item) => item.id === selected) ?? places[0],
@@ -316,6 +317,7 @@ export default function HomeClient() {
       );
       return;
     }
+    setRecommendedPlaces([]);
     setSearchedQuery(clean);
     setNotice(`Searching every feature for “${clean}”.`);
     setScreen("search");
@@ -605,6 +607,7 @@ export default function HomeClient() {
       {screen === "search" && (
         <UnifiedSearch
           initialQuery={searchedQuery}
+          initialPlaces={recommendedPlaces}
           onClose={() => setScreen("home")}
           language={language}
           travelStart={travelStart}
@@ -874,10 +877,12 @@ export default function HomeClient() {
         language={language}
         initialQuestion={aiQuestion}
         onQuestionConsumed={() => setAiQuestion("")}
-        onRecommend={(recommendedPlace) => {
-          setQuery(recommendedPlace);
+        onRecommend={(places) => {
+          const recommendedPlace = places[0];
+          setQuery(places.join(", "));
           setSearchedQuery(recommendedPlace);
-          saveHistory(recommendedPlace);
+          setRecommendedPlaces(places);
+          saveHistory(places.join(", "));
           setScreen("search");
         }}
       />

@@ -40,6 +40,12 @@ type Clinic = {
   lat: number;
   lon: number;
 };
+type Parking = {
+  id: string;
+  name: string;
+  lat: number;
+  lon: number;
+};
 declare global {
   interface Window {
     L?: any;
@@ -420,6 +426,67 @@ const clinicPriorityLabel = (name: string, ko: boolean) => {
     return ko ? "미용 진료 · 후순위" : "COSMETIC CARE · LOWER PRIORITY";
   return ko ? "가까운 동네 병·의원" : "ACCESSIBLE LOCAL CLINIC";
 };
+const foodCategory = (cuisine: string | undefined, language: Language) => {
+  const value = (cuisine || "").toLowerCase();
+  const key = /korean|gukbap|bibimbap|kimchi|samgyeopsal/.test(value)
+    ? "korean"
+    : /japanese|sushi|ramen|udon|soba|yakitori/.test(value)
+      ? "japanese"
+      : /chinese|dim_sum|malatang/.test(value)
+        ? "chinese"
+        : /italian|pizza|pasta/.test(value)
+          ? "western"
+          : /seafood|fish|sashimi/.test(value)
+            ? "seafood"
+            : /cafe|coffee|dessert|bakery/.test(value)
+              ? "cafe"
+              : /fast.food|burger|chicken/.test(value)
+                ? "fastfood"
+                : "other";
+  const labels = {
+    ko: {
+      korean: "한식",
+      japanese: "일식",
+      chinese: "중식",
+      western: "양식",
+      seafood: "해산물",
+      cafe: "카페·디저트",
+      fastfood: "패스트푸드",
+      other: "기타 음식",
+    },
+    en: {
+      korean: "Korean",
+      japanese: "Japanese",
+      chinese: "Chinese",
+      western: "Western",
+      seafood: "Seafood",
+      cafe: "Cafe & dessert",
+      fastfood: "Fast food",
+      other: "Other food",
+    },
+    ja: {
+      korean: "韓国料理",
+      japanese: "日本料理",
+      chinese: "中華料理",
+      western: "洋食",
+      seafood: "海鮮",
+      cafe: "カフェ・デザート",
+      fastfood: "ファストフード",
+      other: "その他",
+    },
+    zh: {
+      korean: "韩餐",
+      japanese: "日餐",
+      chinese: "中餐",
+      western: "西餐",
+      seafood: "海鲜",
+      cafe: "咖啡·甜点",
+      fastfood: "快餐",
+      other: "其他美食",
+    },
+  } as const;
+  return labels[language][key];
+};
 const TOURISM_KEYWORDS = [
   "관광",
   "관광지",
@@ -591,12 +658,14 @@ async function findBusanPlace(value: string): Promise<Point> {
 
 export default function UnifiedSearch({
   initialQuery,
+  initialPlaces = [],
   onClose,
   language,
   travelStart,
   travelEnd,
 }: {
   initialQuery: string;
+  initialPlaces?: string[];
   onClose: () => void;
   language: Language;
   travelStart: string;
@@ -627,6 +696,7 @@ export default function UnifiedSearch({
   );
   const [clinicLoading, setClinicLoading] = useState(false);
   const [clinicError, setClinicError] = useState(false);
+  const [parkingResults, setParkingResults] = useState<Parking[]>([]);
   const recommendedFoodResults = useMemo(
     () =>
       Object.fromEntries(
@@ -727,7 +797,46 @@ export default function UnifiedSearch({
   };
 
   useEffect(() => {
-    runSearch(undefined, initialQuery);
+    if (!initialPlaces.length) {
+      runSearch(undefined, initialQuery);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    Promise.allSettled(initialPlaces.map((place) => findBusanPlace(place)))
+      .then((results) => {
+        const found = results
+          .filter(
+            (result): result is PromiseFulfilledResult<Point> =>
+              result.status === "fulfilled",
+          )
+          .map((result) => result.value);
+        if (cancelled) return;
+        if (!found.length) {
+          void runSearch(undefined, initialQuery);
+          return;
+        }
+        const unique = found.filter(
+          (place, index, items) =>
+            items.findIndex((item) => item.id === place.id) === index,
+        );
+        setPoints(unique);
+        setStops(unique);
+        setSelected(unique[0]);
+        setQuery(unique.map((place) => place.name).join(", "));
+        setMessage(
+          say(
+            `${unique.length} AI-recommended attractions were added in suggested visit order. They are ready as the destination and waypoints.`,
+            `AI 추천 관광지 ${unique.length}곳을 추천 순서대로 목적지와 경유지에 추가했습니다.`,
+          ),
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
   useEffect(() => {
     const ready = () => {
@@ -747,7 +856,7 @@ export default function UnifiedSearch({
       legend.onAdd = () => {
         const node = window.L.DomUtil.create("div", "map-poi-legend");
         node.innerHTML =
-          '<span><i class="food-marker-dot"></i>음식점 / Food</span><span><i class="hospital-marker-dot"></i>병원 / Hospital</span>';
+          '<span><i class="food-marker-dot"></i>음식점 / Food</span><span><i class="hospital-marker-dot"></i>병원 / Hospital</span><span><i class="parking-marker-dot"></i>주차장 / Parking</span>';
         return node;
       };
       legend.addTo(map.current);
@@ -836,6 +945,24 @@ export default function UnifiedSearch({
         )
         .addTo(group),
     );
+    parkingResults.forEach((parking) =>
+      window.L.circleMarker([parking.lat, parking.lon], {
+        radius: 7,
+        color: "#6d5700",
+        fillColor: "#ffd84d",
+        fillOpacity: 1,
+        weight: 2,
+      })
+        .bindTooltip(`${ko ? "주차장" : "Parking"} · ${parking.name}`)
+        .on("click", () => {
+          window.open(
+            `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${parking.name} ${parking.lat},${parking.lon}`)}`,
+            "_blank",
+            "noopener,noreferrer",
+          );
+        })
+        .addTo(group),
+    );
     group.addTo(map.current);
     layer.current = group;
     const bounds = group.getBounds();
@@ -849,6 +976,7 @@ export default function UnifiedSearch({
     mapReady,
     recommendedFoodResults,
     recommendedClinicResults,
+    parkingResults,
     ko,
   ]);
 
@@ -1008,6 +1136,55 @@ export default function UnifiedSearch({
 
   const roadKm = route ? route.distance / 1000 : null;
   const infoPlaces = stops.length ? stops : selected ? [selected] : [];
+  useEffect(() => {
+    if (!infoPlaces.length) {
+      setParkingResults([]);
+      return;
+    }
+    let cancelled = false;
+    const clauses = infoPlaces
+      .flatMap((place) => [
+        `node(around:1500,${place.lat},${place.lon})["amenity"="parking"]`,
+        `way(around:1500,${place.lat},${place.lon})["amenity"="parking"]`,
+        `relation(around:1500,${place.lat},${place.lon})["amenity"="parking"]`,
+      ])
+      .join(";");
+    const overpassQuery = `[out:json][timeout:20];(${clauses};);out center tags;`;
+    fetch(
+      `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`,
+    )
+      .then((response) => {
+        if (!response.ok) throw new Error("parking unavailable");
+        return response.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        const parking = (data.elements || [])
+          .map((item: any) => ({
+            id: `parking-${item.type}-${item.id}`,
+            name:
+              item.tags?.["name:ko"] ||
+              item.tags?.name ||
+              (ko ? "주차장" : "Parking"),
+            lat: Number(item.lat ?? item.center?.lat),
+            lon: Number(item.lon ?? item.center?.lon),
+          }))
+          .filter(
+            (item: Parking, index: number, items: Parking[]) =>
+              Number.isFinite(item.lat) &&
+              Number.isFinite(item.lon) &&
+              items.findIndex((other) => other.id === item.id) === index,
+          )
+          .slice(0, 60);
+        setParkingResults(parking);
+      })
+      .catch(() => {
+        if (!cancelled) setParkingResults([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [stops, selected, ko]);
   useEffect(() => {
     if (!infoPlaces.length) return;
     let cancelled = false;
@@ -1421,6 +1598,9 @@ export default function UnifiedSearch({
                                   {ko
                                     ? restaurant.nameKo || restaurant.name
                                     : restaurant.name}
+                                  <em className="food-kind-badge">
+                                    {foodCategory(restaurant.cuisine, language)}
+                                  </em>
                                 </strong>
                                 <p>
                                   {restaurant.cuisine

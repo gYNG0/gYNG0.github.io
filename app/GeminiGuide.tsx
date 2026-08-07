@@ -100,7 +100,7 @@ export default function GeminiGuide({
   onQuestionConsumed,
 }: {
   language: Language;
-  onRecommend: (place: string) => void;
+  onRecommend: (places: string[]) => void;
   initialQuestion?: string;
   onQuestionConsumed?: () => void;
 }) {
@@ -181,8 +181,15 @@ export default function GeminiGuide({
           },
         ].slice(-20),
       );
-      if (typeof data.recommendedPlace === "string" && data.recommendedPlace)
-        onRecommend(data.recommendedPlace);
+      const recommendedPlaces = Array.isArray(data.recommendedPlaces)
+        ? data.recommendedPlaces.filter(
+            (place: unknown): place is string =>
+              typeof place === "string" && Boolean(place.trim()),
+          )
+        : typeof data.recommendedPlace === "string" && data.recommendedPlace
+          ? [data.recommendedPlace]
+          : [];
+      if (recommendedPlaces.length) onRecommend(recommendedPlaces);
     } catch {
       setMessages((items) =>
         [...items, { role: "assistant" as const, text: t.error }].slice(-20),

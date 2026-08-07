@@ -3499,6 +3499,18 @@ footer {
   color: #183c58;
   font-size: 12px;
 }
+.food-kind-badge {
+  display: inline-flex;
+  margin-left: 7px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: #e2efeb;
+  color: #176b66;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 900;
+  vertical-align: middle;
+}
 .restaurant-briefs p {
   min-height: 0 !important;
   margin: 4px 0 !important;
@@ -3630,6 +3642,10 @@ footer {
 }
 .hospital-marker-dot {
   background: #1d9b62;
+}
+.parking-marker-dot {
+  border: 1px solid #6d5700;
+  background: #ffd84d;
 }
 
 .ai-guide {
