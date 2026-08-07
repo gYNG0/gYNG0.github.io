@@ -1190,6 +1190,7 @@ export default function UnifiedSearch({
   const [origin, setOrigin] = useState<Point | null>(null);
   const [stops, setStops] = useState<Point[]>([]);
   const [reorderingStop, setReorderingStop] = useState<number | null>(null);
+  const reorderLockedUntil = useRef(0);
   const [stopInput, setStopInput] = useState("");
   const [route, setRoute] = useState<RouteData | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -1574,7 +1575,14 @@ export default function UnifiedSearch({
   }, [selected, stops.length]);
 
   const moveStop = (from: number, to: number) => {
-    if (from === to || to < 0 || to >= stops.length) return;
+    if (
+      from === to ||
+      to < 0 ||
+      to >= stops.length ||
+      performance.now() < reorderLockedUntil.current
+    )
+      return false;
+    reorderLockedUntil.current = performance.now() + 300;
     const previousPositions = new Map(
       Array.from(
         document.querySelectorAll<HTMLElement>(
@@ -1604,6 +1612,9 @@ export default function UnifiedSearch({
               const distance =
                 previousTop - element.getBoundingClientRect().top;
               if (Math.abs(distance) < 1) return;
+              element
+                .getAnimations()
+                .forEach((animation) => animation.cancel());
               element.animate(
                 [
                   { transform: `translateY(${distance}px)` },
@@ -1615,6 +1626,7 @@ export default function UnifiedSearch({
         }),
       );
     setRoute(null);
+    return true;
   };
 
   const stopInstanceKey = (stop: Point, index: number) =>
@@ -2169,20 +2181,7 @@ export default function UnifiedSearch({
                         key={stopInstanceKey(stop, index)}
                         data-stop-key={stopInstanceKey(stop, index)}
                         data-stop-index={index}
-                        draggable
                         className={reorderingStop === index ? "reordering" : ""}
-                        onDragStart={() => setReorderingStop(index)}
-                        onDragOver={(event) => {
-                          event.preventDefault();
-                          if (
-                            reorderingStop !== null &&
-                            reorderingStop !== index
-                          ) {
-                            moveStop(reorderingStop, index);
-                            setReorderingStop(index);
-                          }
-                        }}
-                        onDragEnd={() => setReorderingStop(null)}
                       >
                         <b>{index + 1}</b>
                         <button
@@ -2221,8 +2220,8 @@ export default function UnifiedSearch({
                               Number.isInteger(nextIndex) &&
                               nextIndex !== reorderingStop
                             ) {
-                              moveStop(reorderingStop, nextIndex);
-                              setReorderingStop(nextIndex);
+                              if (moveStop(reorderingStop, nextIndex))
+                                setReorderingStop(nextIndex);
                             }
                           }}
                           onPointerUp={() => setReorderingStop(null)}
