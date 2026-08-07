@@ -3632,6 +3632,12 @@ footer {
   padding: 17px 18px;
   background: #173858;
   color: #fff;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.ai-guide-panel > header:active {
+  cursor: grabbing;
 }
 .ai-guide-panel header small {
   display: block;
@@ -3651,6 +3657,29 @@ footer {
   color: #fff;
   font-size: 27px;
   cursor: pointer;
+}
+.ai-window-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ai-window-actions button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 8px;
+  font-size: 21px !important;
+}
+.ai-window-actions button:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.ai-guide-panel.minimized {
+  display: block;
+  width: min(330px, calc(100vw - 28px));
+}
+.ai-guide-panel.minimized > :not(header) {
+  display: none;
 }
 .ai-guide-messages {
   display: flex;

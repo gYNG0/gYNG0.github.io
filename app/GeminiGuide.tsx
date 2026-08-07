@@ -1,6 +1,12 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import {
+  FormEvent,
+  PointerEvent as ReactPointerEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 export type Language = "ko" | "en" | "ja" | "zh";
 type Message = { role: "user" | "assistant"; text: string };
@@ -9,6 +15,8 @@ const copy = {
   ko: {
     title: "부산 관광 AI 도우미",
     close: "닫기",
+    minimize: "AI 창 축소",
+    restore: "AI 창 펼치기",
     welcome: "무엇을 도와드릴까요?",
     intro:
       "야간 명소, 분위기 좋은 장소, 경로, 음식점, 병원과 해안 안전을 물어보세요.",
@@ -25,6 +33,8 @@ const copy = {
   en: {
     title: "Busan travel AI guide",
     close: "Close",
+    minimize: "Minimize AI window",
+    restore: "Restore AI window",
     welcome: "How can I help?",
     intro:
       "Ask about night views, atmospheric places, routes, food, hospitals or coastal safety.",
@@ -41,6 +51,8 @@ const copy = {
   ja: {
     title: "釜山観光AIガイド",
     close: "閉じる",
+    minimize: "AI画面を最小化",
+    restore: "AI画面を元に戻す",
     welcome: "何をお手伝いしましょうか？",
     intro:
       "夜景、雰囲気の良い場所、ルート、グルメ、病院、海岸の安全について質問できます。",
@@ -57,6 +69,8 @@ const copy = {
   zh: {
     title: "釜山旅游AI助手",
     close: "关闭",
+    minimize: "最小化AI窗口",
+    restore: "展开AI窗口",
     welcome: "需要什么帮助？",
     intro: "可询问夜景、氛围好的地点、路线、美食、医院和海岸安全。",
     placeholder: "例如：推荐釜山氛围好的夜景地点",
@@ -84,11 +98,23 @@ export default function GeminiGuide({
 }) {
   const t = copy[language];
   const [open, setOpen] = useState(false);
+  const [minimized, setMinimized] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const lastInitialQuestion = useRef("");
+  const drag = useRef<{
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  } | null>(null);
 
   useEffect(() => {
     try {
@@ -156,6 +182,7 @@ export default function GeminiGuide({
     if (!question || question === lastInitialQuestion.current) return;
     lastInitialQuestion.current = question;
     setOpen(true);
+    setMinimized(false);
     onQuestionConsumed?.();
     void submitQuestion(question);
     // A new initialQuestion value represents one explicit search submission.
@@ -167,18 +194,71 @@ export default function GeminiGuide({
     void submitQuestion(input.trim());
   };
 
+  const startDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    if ((event.target as HTMLElement).closest("button")) return;
+    const panel = event.currentTarget.closest(".ai-guide-panel");
+    if (!panel) return;
+    const rect = panel.getBoundingClientRect();
+    drag.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: position.x,
+      originY: position.y,
+      minX: position.x - rect.left + 8,
+      maxX: position.x + window.innerWidth - rect.right - 8,
+      minY: position.y - rect.top + 8,
+      maxY: position.y + window.innerHeight - rect.bottom - 8,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    if (!drag.current) return;
+    const nextX = drag.current.originX + event.clientX - drag.current.startX;
+    const nextY = drag.current.originY + event.clientY - drag.current.startY;
+    setPosition({
+      x: Math.min(drag.current.maxX, Math.max(drag.current.minX, nextX)),
+      y: Math.min(drag.current.maxY, Math.max(drag.current.minY, nextY)),
+    });
+  };
+
+  const stopDrag = () => {
+    drag.current = null;
+  };
+
   return (
-    <aside className={`ai-guide ${open ? "open" : ""}`}>
+    <aside
+      className={`ai-guide ${open ? "open" : ""}`}
+      style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
+    >
       {open && (
-        <section className="ai-guide-panel" aria-label={t.title}>
-          <header>
+        <section
+          className={`ai-guide-panel ${minimized ? "minimized" : ""}`}
+          aria-label={t.title}
+        >
+          <header
+            onPointerDown={startDrag}
+            onPointerMove={moveDrag}
+            onPointerUp={stopDrag}
+            onPointerCancel={stopDrag}
+            title="Drag / 이동"
+          >
             <div>
               <small>GEMINI · BLUE LINE BUSAN</small>
               <h2>{t.title}</h2>
             </div>
-            <button onClick={() => setOpen(false)} aria-label={t.close}>
-              ×
-            </button>
+            <div className="ai-window-actions">
+              <button
+                onClick={() => setMinimized((value) => !value)}
+                aria-label={minimized ? t.restore : t.minimize}
+                title={minimized ? t.restore : t.minimize}
+              >
+                {minimized ? "□" : "—"}
+              </button>
+              <button onClick={() => setOpen(false)} aria-label={t.close}>
+                ×
+              </button>
+            </div>
           </header>
           <div className="ai-guide-messages" aria-live="polite">
             {messages.length === 0 && (
