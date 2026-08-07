@@ -3596,6 +3596,9 @@ footer {
   z-index: 10000;
   right: 22px;
   bottom: 22px;
+  will-change: transform;
+  backface-visibility: hidden;
+  contain: layout style;
 }
 .ai-guide-launch {
   display: flex;

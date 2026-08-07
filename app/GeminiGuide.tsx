@@ -105,6 +105,9 @@ export default function GeminiGuide({
   const [messages, setMessages] = useState<Message[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const lastInitialQuestion = useRef("");
+  const guideRef = useRef<HTMLElement>(null);
+  const animationFrame = useRef<number | null>(null);
+  const latestPosition = useRef(position);
   const drag = useRef<{
     startX: number;
     startY: number;
@@ -216,20 +219,38 @@ export default function GeminiGuide({
     if (!drag.current) return;
     const nextX = drag.current.originX + event.clientX - drag.current.startX;
     const nextY = drag.current.originY + event.clientY - drag.current.startY;
-    setPosition({
+    latestPosition.current = {
       x: Math.min(drag.current.maxX, Math.max(drag.current.minX, nextX)),
       y: Math.min(drag.current.maxY, Math.max(drag.current.minY, nextY)),
+    };
+    if (animationFrame.current !== null) return;
+    animationFrame.current = window.requestAnimationFrame(() => {
+      const { x, y } = latestPosition.current;
+      if (guideRef.current)
+        guideRef.current.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+      animationFrame.current = null;
     });
   };
 
   const stopDrag = () => {
+    if (animationFrame.current !== null) {
+      window.cancelAnimationFrame(animationFrame.current);
+      animationFrame.current = null;
+    }
+    const { x, y } = latestPosition.current;
+    if (guideRef.current)
+      guideRef.current.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    setPosition({ x, y });
     drag.current = null;
   };
 
   return (
     <aside
+      ref={guideRef}
       className={`ai-guide ${open ? "open" : ""}`}
-      style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
+      style={{
+        transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
+      }}
     >
       {open && (
         <section
