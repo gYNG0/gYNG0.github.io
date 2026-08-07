@@ -1189,6 +1189,7 @@ export default function UnifiedSearch({
   const [message, setMessage] = useState("Searching Busan…");
   const [origin, setOrigin] = useState<Point | null>(null);
   const [stops, setStops] = useState<Point[]>([]);
+  const [reorderingStop, setReorderingStop] = useState<number | null>(null);
   const [stopInput, setStopInput] = useState("");
   const [route, setRoute] = useState<RouteData | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -1572,6 +1573,17 @@ export default function UnifiedSearch({
     if (selected && stops.length === 0) setStops([selected]);
   }, [selected, stops.length]);
 
+  const moveStop = (from: number, to: number) => {
+    if (from === to || to < 0 || to >= stops.length) return;
+    setStops((items) => {
+      const next = [...items];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+    setRoute(null);
+  };
+
   const addWaypoint = async (event: FormEvent) => {
     event.preventDefault();
     const clean = stopInput.trim();
@@ -1584,36 +1596,19 @@ export default function UnifiedSearch({
     setLoading(true);
     try {
       const found = await findBusanPlace(clean);
-      if (
-        stops.some(
-          (stop) =>
-            stop.id === found.id ||
-            (stop.lat === found.lat && stop.lon === found.lon),
-        )
-      )
-        setMessage(
-          say(
-            `${found.name} is already in the route.`,
-            `${displayName(found)}은(는) 이미 경로에 있습니다.`,
-          ),
-        );
-      else {
-        setStops((items) => [...items, found]);
-        setPoints((items) =>
-          items.some((item) => item.id === found.id)
-            ? items
-            : [...items, found],
-        );
-        setSelected(found);
-        setRoute(null);
-        setStopInput("");
-        setMessage(
-          say(
-            `${found.name} added as waypoint ${stops.length + 1}. Food and safety now follow this place.`,
-            `${displayName(found)}을(를) ${stops.length + 1}번째 경유지로 추가했습니다. 음식점과 안전 정보도 이 장소를 기준으로 변경했습니다.`,
-          ),
-        );
-      }
+      setStops((items) => [...items, found]);
+      setPoints((items) =>
+        items.some((item) => item.id === found.id) ? items : [...items, found],
+      );
+      setSelected(found);
+      setRoute(null);
+      setStopInput("");
+      setMessage(
+        say(
+          `${found.name} added as waypoint ${stops.length + 1}. Duplicate visits are allowed.`,
+          `${displayName(found)}을(를) ${stops.length + 1}번째 경유지로 추가했습니다. 같은 장소도 여러 번 추가할 수 있습니다.`,
+        ),
+      );
     } catch {
       setMessage(
         say(
@@ -2134,8 +2129,70 @@ export default function UnifiedSearch({
                   </form>
                   <ol className="waypoint-list">
                     {stops.map((stop, index) => (
-                      <li key={`${stop.id}-${index}`}>
+                      <li
+                        key={`${stop.id}-${index}`}
+                        data-stop-index={index}
+                        draggable
+                        className={reorderingStop === index ? "reordering" : ""}
+                        onDragStart={() => setReorderingStop(index)}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          if (
+                            reorderingStop !== null &&
+                            reorderingStop !== index
+                          ) {
+                            moveStop(reorderingStop, index);
+                            setReorderingStop(index);
+                          }
+                        }}
+                        onDragEnd={() => setReorderingStop(null)}
+                      >
                         <b>{index + 1}</b>
+                        <button
+                          type="button"
+                          className="waypoint-drag-handle"
+                          aria-label={
+                            ko
+                              ? `${displayName(stop)} 순서 변경`
+                              : `Reorder ${displayName(stop)}`
+                          }
+                          title={
+                            ko
+                              ? "끌거나 마우스 휠로 순서 변경"
+                              : "Drag or scroll to reorder"
+                          }
+                          onWheel={(event) => {
+                            event.preventDefault();
+                            moveStop(
+                              index,
+                              index + (event.deltaY > 0 ? 1 : -1),
+                            );
+                          }}
+                          onPointerDown={(event) => {
+                            event.currentTarget.setPointerCapture(
+                              event.pointerId,
+                            );
+                            setReorderingStop(index);
+                          }}
+                          onPointerMove={(event) => {
+                            if (reorderingStop === null) return;
+                            const target = document
+                              .elementFromPoint(event.clientX, event.clientY)
+                              ?.closest<HTMLElement>("[data-stop-index]");
+                            const nextIndex = Number(target?.dataset.stopIndex);
+                            if (
+                              Number.isInteger(nextIndex) &&
+                              nextIndex !== reorderingStop
+                            ) {
+                              moveStop(reorderingStop, nextIndex);
+                              setReorderingStop(nextIndex);
+                            }
+                          }}
+                          onPointerUp={() => setReorderingStop(null)}
+                          onPointerCancel={() => setReorderingStop(null)}
+                        >
+                          ↕
+                        </button>
                         <span>
                           {displayName(stop)}
                           <small>
@@ -2147,6 +2204,24 @@ export default function UnifiedSearch({
                                 ? "경유지"
                                 : "Waypoint"}
                           </small>
+                        </span>
+                        <span className="waypoint-step-buttons">
+                          <button
+                            type="button"
+                            disabled={index === 0}
+                            onClick={() => moveStop(index, index - 1)}
+                            aria-label={ko ? "위로 이동" : "Move up"}
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            disabled={index === stops.length - 1}
+                            onClick={() => moveStop(index, index + 1)}
+                            aria-label={ko ? "아래로 이동" : "Move down"}
+                          >
+                            ↓
+                          </button>
                         </span>
                         <button
                           aria-label={`${ko ? "삭제" : "Remove"} ${displayName(stop)}`}
