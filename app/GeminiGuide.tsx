@@ -29,6 +29,8 @@ const copy = {
       "AI 답변은 참고용입니다. 최신 평점은 Google 지도에서 확인하고, 긴급 상황은 119에 연락하세요.",
     launch: "AI 관광 도우미",
     auto: "추천 장소 자동 추가 · 대화 기억",
+    thinking: "답변을 준비하고 있어요…",
+    ready: "새 답변 도착 · 눌러서 확인",
   },
   en: {
     title: "Busan travel AI guide",
@@ -47,6 +49,8 @@ const copy = {
       "AI answers are for guidance. Check current ratings on Google Maps and call 119 for emergencies in Korea.",
     launch: "AI travel guide",
     auto: "Auto-add places · remembers chat",
+    thinking: "Preparing your answer…",
+    ready: "New answer · tap to view",
   },
   ja: {
     title: "釜山観光AIガイド",
@@ -65,6 +69,8 @@ const copy = {
       "AIの回答は参考情報です。最新評価はGoogleマップで確認し、緊急時は119へ連絡してください。",
     launch: "AI観光ガイド",
     auto: "おすすめを自動追加・会話を記憶",
+    thinking: "回答を準備しています…",
+    ready: "新しい回答・タップして確認",
   },
   zh: {
     title: "釜山旅游AI助手",
@@ -82,6 +88,8 @@ const copy = {
       "AI回答仅供参考。请在Google地图确认最新评分，韩国紧急情况请拨119。",
     launch: "AI旅游助手",
     auto: "自动添加推荐地点・记住对话",
+    thinking: "正在准备回答…",
+    ready: "新回答已到・点击查看",
   },
 };
 
@@ -99,6 +107,9 @@ export default function GeminiGuide({
   const t = copy[language];
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
+  const [notification, setNotification] = useState<"thinking" | "ready" | null>(
+    null,
+  );
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -140,8 +151,9 @@ export default function GeminiGuide({
     );
   }, [hydrated, messages]);
 
-  const submitQuestion = async (question: string) => {
+  const submitQuestion = async (question: string, notify = false) => {
     if (!question || loading) return;
+    if (notify) setNotification("thinking");
     const conversation: Message[] = [
       ...messages,
       { role: "user" as const, text: question },
@@ -177,6 +189,7 @@ export default function GeminiGuide({
       );
     } finally {
       setLoading(false);
+      if (notify) setNotification("ready");
     }
   };
 
@@ -184,10 +197,8 @@ export default function GeminiGuide({
     const question = initialQuestion?.trim();
     if (!question || question === lastInitialQuestion.current) return;
     lastInitialQuestion.current = question;
-    setOpen(true);
-    setMinimized(false);
     onQuestionConsumed?.();
-    void submitQuestion(question);
+    void submitQuestion(question, true);
     // A new initialQuestion value represents one explicit search submission.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuestion]);
@@ -310,10 +321,23 @@ export default function GeminiGuide({
         </section>
       )}
       {!open && (
-        <button className="ai-guide-launch" onClick={() => setOpen(true)}>
+        <button
+          className={`ai-guide-launch ${notification ? `ai-${notification}` : ""}`}
+          onClick={() => {
+            setOpen(true);
+            setMinimized(false);
+            setNotification(null);
+          }}
+        >
           <span>✦</span>
           <b>{t.launch}</b>
-          <small>{t.auto}</small>
+          <small aria-live="polite">
+            {notification === "thinking"
+              ? t.thinking
+              : notification === "ready"
+                ? t.ready
+                : t.auto}
+          </small>
         </button>
       )}
     </aside>

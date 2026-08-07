@@ -3601,6 +3601,7 @@ footer {
   contain: layout style;
 }
 .ai-guide-launch {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -3792,6 +3793,28 @@ footer {
 .ai-guide-launch:hover {
   transform: translateY(-3px) scale(1.02);
   animation: none;
+}
+.ai-guide-launch.ai-thinking,
+.ai-guide-launch.ai-ready {
+  border-color: #d8f64e;
+  background: #173858;
+  color: #fff;
+}
+.ai-guide-launch.ai-thinking small,
+.ai-guide-launch.ai-ready small {
+  color: #d8f64e;
+  opacity: 1;
+}
+.ai-guide-launch.ai-ready::after {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 13px;
+  height: 13px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #ff5b57;
+  content: "";
 }
 .ai-guide.open {
   animation: none;
