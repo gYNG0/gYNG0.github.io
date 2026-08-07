@@ -1175,44 +1175,46 @@ export default function UnifiedSearch({
     let cancelled = false;
     setFoodLoading(true);
     setFoodError(false);
-    Promise.all(
-      infoPlaces.map(async (place) => {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&namedetails=1&extratags=1&accept-language=en&limit=16&q=${encodeURIComponent(`restaurant near ${place.name}, Busan`)}`,
-        );
-        if (!response.ok) return [place.id, [] as Restaurant[]] as const;
-        const data = await response.json();
-        const restaurants: Restaurant[] = data
-          .map((item: any) => {
-            const names = item.namedetails || {};
-            return {
-              id: `nominatim-${item.place_id}`,
-              name:
-                names["name:en"] ||
-                names.name ||
-                item.display_name.split(",")[0] ||
-                "Local restaurant",
-              nameKo: names["name:ko"] || names.name,
-              cuisine:
-                item.extratags?.cuisine ||
-                (item.type === "cafe"
-                  ? "cafe"
-                  : item.type === "fast_food"
-                    ? "fast food"
-                    : "local food"),
-              hours: item.extratags?.opening_hours,
-              distance: distanceKm(place, Number(item.lat), Number(item.lon)),
-              lat: Number(item.lat),
-              lon: Number(item.lon),
-            };
-          })
-          .filter((item: Restaurant) => item.name !== "Local restaurant")
-          .sort((a: Restaurant, b: Restaurant) => a.distance - b.distance);
-        return [place.id, restaurants] as const;
+    fetch("/api/nearby", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind: "food",
+        places: infoPlaces.map((place) => ({
+          lat: place.lat,
+          lon: place.lon,
+        })),
       }),
-    )
-      .then((entries) => {
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("food unavailable");
+        return response.json();
+      })
+      .then((data) => {
         if (!cancelled) {
+          const nearby = Array.isArray(data.places) ? data.places : [];
+          const entries = infoPlaces.map((place) => {
+            const restaurants: Restaurant[] = nearby
+              .map((item: any) => ({
+                id: item.id,
+                name: item.name,
+                nameKo: item.nameKo,
+                cuisine:
+                  item.cuisine ||
+                  (item.amenity === "cafe"
+                    ? "cafe"
+                    : item.amenity === "fast_food"
+                      ? "fast food"
+                      : "local food"),
+                hours: item.hours,
+                distance: distanceKm(place, item.lat, item.lon),
+                lat: item.lat,
+                lon: item.lon,
+              }))
+              .filter((item: Restaurant) => item.distance <= 3)
+              .sort((a: Restaurant, b: Restaurant) => a.distance - b.distance);
+            return [place.id, restaurants] as const;
+          });
           const next = Object.fromEntries(entries);
           setFoodResults(next);
           setFoodError(
