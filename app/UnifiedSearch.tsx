@@ -359,6 +359,9 @@ export default function UnifiedSearch({
         maxZoom: 19,
         attribution: "© OpenStreetMap contributors",
       }).addTo(map.current);
+      window.L.control
+        .scale({ metric: true, imperial: false, position: "bottomleft" })
+        .addTo(map.current);
       setMapReady(true);
     };
     if (window.L) ready();
@@ -578,48 +581,35 @@ export default function UnifiedSearch({
   const roadKm = route ? route.distance / 1000 : null;
   const infoPlaces = stops.length ? stops : selected ? [selected] : [];
   useEffect(() => {
-    if (tab !== "food" || !infoPlaces.length) return;
+    if (!infoPlaces.length) return;
     let cancelled = false;
     setFoodLoading(true);
     setFoodError(false);
     Promise.all(
       infoPlaces.map(async (place) => {
-        const query = `[out:json][timeout:10];nwr["amenity"~"^(restaurant|cafe|fast_food)$"](around:1000,${place.lat},${place.lon});out center 24;`;
-        const endpoints = [
-          "https://overpass.kumi.systems/api/interpreter",
-          "https://overpass-api.de/api/interpreter",
-        ];
-        let data: any = null;
-        for (const endpoint of endpoints) {
-          try {
-            const response = await fetch(
-              `${endpoint}?data=${encodeURIComponent(query)}`,
-            );
-            if (response.ok) {
-              data = await response.json();
-              break;
-            }
-          } catch {
-            /* try the next public mirror */
-          }
-        }
-        if (!data) return [place.id, [] as Restaurant[]] as const;
-        const restaurants: Restaurant[] = data.elements
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&namedetails=1&accept-language=en&limit=8&q=${encodeURIComponent(`restaurant near ${place.name}, Busan`)}`,
+        );
+        if (!response.ok) return [place.id, [] as Restaurant[]] as const;
+        const data = await response.json();
+        const restaurants: Restaurant[] = data
           .map((item: any) => {
-            const lat = item.lat ?? item.center?.lat;
-            const lon = item.lon ?? item.center?.lon;
-            const tags = item.tags || {};
+            const names = item.namedetails || {};
             return {
-              id: `${item.type}-${item.id}`,
+              id: `nominatim-${item.place_id}`,
               name:
-                tags["name:en"] ||
-                tags.name ||
-                tags["name:ko"] ||
+                names["name:en"] ||
+                names.name ||
+                item.display_name.split(",")[0] ||
                 "Local restaurant",
-              nameKo: tags["name:ko"] || tags.name,
-              cuisine: tags.cuisine,
-              hours: tags.opening_hours,
-              distance: lat && lon ? distanceKm(place, lat, lon) : 99,
+              nameKo: names["name:ko"] || names.name,
+              cuisine:
+                item.type === "cafe"
+                  ? "cafe"
+                  : item.type === "fast_food"
+                    ? "fast food"
+                    : "restaurant",
+              distance: distanceKm(place, Number(item.lat), Number(item.lon)),
             };
           })
           .filter((item: Restaurant) => item.name !== "Local restaurant")
@@ -649,7 +639,7 @@ export default function UnifiedSearch({
     return () => {
       cancelled = true;
     };
-  }, [tab, stops, selected]);
+  }, [stops, selected]);
   useEffect(() => {
     if (tab !== "care" || !infoPlaces.length) return;
     let cancelled = false;
@@ -834,7 +824,7 @@ export default function UnifiedSearch({
                 {ko ? "안전 정보" : "Safety board"}
               </button>
             </nav>
-            <div className="result-panel">
+            <div className="result-panel tab-slide-panel" key={tab}>
               {tab === "route" && (
                 <article className="unified-route">
                   <small>{ko ? "도로 경로" : "ROAD ROUTE"}</small>
