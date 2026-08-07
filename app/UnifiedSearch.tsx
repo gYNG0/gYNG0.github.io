@@ -162,6 +162,43 @@ const TOURISM_KEYWORDS = [
   "places to visit",
   "travel spots",
 ];
+const MAJOR_HOSPITALS = [
+  {
+    id: "haeundae-paik",
+    name: "Haeundae Paik Hospital",
+    nameKo: "해운대백병원",
+    lat: 35.1731,
+    lon: 129.1825,
+  },
+  {
+    id: "good-gangan",
+    name: "Good GangAn Hospital",
+    nameKo: "좋은강안병원",
+    lat: 35.1506,
+    lon: 129.1092,
+  },
+  {
+    id: "pnuh",
+    name: "Pusan National University Hospital",
+    nameKo: "부산대학교병원",
+    lat: 35.1012,
+    lon: 129.018,
+  },
+  {
+    id: "kosin",
+    name: "Kosin University Gospel Hospital",
+    nameKo: "고신대학교복음병원",
+    lat: 35.0807,
+    lon: 129.0142,
+  },
+  {
+    id: "donga",
+    name: "Dong-A University Hospital",
+    nameKo: "동아대학교병원",
+    lat: 35.1203,
+    lon: 129.0176,
+  },
+];
 
 async function findBusanPlace(value: string): Promise<Point> {
   const clean = value.trim();
@@ -596,60 +633,66 @@ export default function UnifiedSearch({
     let cancelled = false;
     setClinicLoading(true);
     setClinicError(false);
-    Promise.all(
-      infoPlaces.map(async (place) => {
-        const query = `[out:json][timeout:10];nwr["amenity"~"^(hospital|clinic|doctors)$"](around:5000,${place.lat},${place.lon});out center 35;`;
-        const endpoints = [
-          "https://overpass.kumi.systems/api/interpreter",
-          "https://overpass-api.de/api/interpreter",
-        ];
-        let data: any = null;
-        for (const endpoint of endpoints) {
-          try {
-            const response = await fetch(
-              `${endpoint}?data=${encodeURIComponent(query)}`,
-            );
-            if (response.ok) {
-              data = await response.json();
-              break;
-            }
-          } catch {
-            /* try mirror */
+    (async () => {
+      const entries: Array<readonly [string, Clinic[]]> = [];
+      for (const place of infoPlaces) {
+        const major = MAJOR_HOSPITALS.map((hospital) => ({
+          ...hospital,
+          kind: "hospital" as const,
+          distance: distanceKm(place, hospital.lat, hospital.lon),
+        })).sort((a, b) => a.distance - b.distance)[0];
+        let local: Clinic[] = [];
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&namedetails=1&accept-language=en&limit=10&q=${encodeURIComponent(`hospital near ${place.name}, Busan`)}`,
+          );
+          if (response.ok) {
+            const results = await response.json();
+            local = results
+              .map((item: any) => {
+                const names = item.namedetails || {};
+                return {
+                  id: `nominatim-${item.place_id}`,
+                  name:
+                    names["name:en"] ||
+                    names.name ||
+                    item.display_name.split(",")[0],
+                  nameKo: names["name:ko"] || names.name,
+                  kind: "clinic" as const,
+                  specialty: item.type,
+                  distance: distanceKm(
+                    place,
+                    Number(item.lat),
+                    Number(item.lon),
+                  ),
+                };
+              })
+              .filter(
+                (clinic: Clinic) =>
+                  clinic.distance <= 5 && clinic.name !== major.name,
+              )
+              .sort((a: Clinic, b: Clinic) => a.distance - b.distance)
+              .slice(0, 3);
           }
+        } catch {
+          /* keep the major hospital and Goodoc search link */
         }
-        if (!data) return [place.id, [] as Clinic[]] as const;
-        const all: Clinic[] = data.elements
-          .map((item: any) => {
-            const tags = item.tags || {};
-            const lat = item.lat ?? item.center?.lat;
-            const lon = item.lon ?? item.center?.lon;
-            return {
-              id: `${item.type}-${item.id}`,
-              name:
-                tags["name:en"] ||
-                tags.name ||
-                tags["name:ko"] ||
-                "Local clinic",
-              nameKo: tags["name:ko"] || tags.name,
-              kind: tags.amenity === "hospital" ? "hospital" : "clinic",
-              specialty:
-                tags.healthcare ||
-                tags["healthcare:speciality"] ||
-                tags.speciality,
-              phone: tags.phone || tags["contact:phone"],
-              hours: tags.opening_hours,
-              distance: lat && lon ? distanceKm(place, lat, lon) : 99,
-            };
-          })
-          .filter((item: Clinic) => item.name !== "Local clinic")
-          .sort((a: Clinic, b: Clinic) => a.distance - b.distance);
-        const large = all
-          .filter((item) => item.kind === "hospital")
-          .slice(0, 1);
-        const local = all.filter((item) => item.kind === "clinic").slice(0, 3);
-        return [place.id, [...large, ...local]] as const;
-      }),
-    )
+        entries.push([
+          place.id,
+          [
+            {
+              id: major.id,
+              name: major.name,
+              nameKo: major.nameKo,
+              kind: major.kind,
+              distance: major.distance,
+            },
+            ...local,
+          ],
+        ]);
+      }
+      return entries;
+    })()
       .then((entries) => {
         if (!cancelled) {
           setClinicResults(Object.fromEntries(entries));
