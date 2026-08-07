@@ -3277,14 +3277,14 @@ footer {
 .google-auth-button {
   display: flex;
   align-items: center;
-  gap: 7px;
-  min-height: 34px;
-  padding: 6px 11px !important;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 6px !important;
   border: 1px solid rgba(255, 255, 255, 0.42) !important;
   border-radius: 99px !important;
   font-size: 10px;
   font-weight: 900;
-  white-space: nowrap;
 }
 .google-auth-button span {
   display: grid;

@@ -84,8 +84,13 @@ export default function GoogleAuthButton({ language }: { language: Language }) {
 
   if (!ready)
     return (
-      <button className="google-auth-button" disabled>
-        {t.loading}
+      <button
+        className="google-auth-button"
+        disabled
+        aria-label={t.loading}
+        title={t.loading}
+      >
+        <span aria-hidden="true">G</span>
       </button>
     );
 
@@ -96,10 +101,10 @@ export default function GoogleAuthButton({ language }: { language: Language }) {
           className="google-auth-button"
           onClick={login}
           disabled={busy}
+          aria-label={busy ? t.loading : t.login}
           title={error || t.login}
         >
           <span aria-hidden="true">G</span>
-          {busy ? t.loading : t.login}
         </button>
         {error && <small role="alert">{error}</small>}
       </div>
